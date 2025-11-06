@@ -39,8 +39,6 @@ mv target\release\indexd_ffi.dll ../
 cd ../
 ```
 
-### 4. From the `wackamole` root directory run `publish.py` to publish your website on Sia, and run `gateway.py` to host a gateway to the site.
-
 ## Publisher (`publish.py`)
 
 This script is used to create a `manifest.json` that is then zipped together with the users website and uploaded to the Sia network through an indexd node. The script uses `website/` by default as the location of the users website. This can be changed by using the `--site` flag.
