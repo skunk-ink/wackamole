@@ -1,6 +1,34 @@
 # wackamole
 Wack-A-Mole is a decentralized arcade hosted on the Sia network.
 
+1. Clone Sia's SDK and build 
+```shell
+git clone https://github.com/siafoundation/sia-sdk-rs
+```
+
+2. Build the SDK for your system:
+Linux:
+```shell
+cd sia-sdk-rs/
+cargo build --release -p indexd_ffi
+cargo run -p indexd_ffi --bin uniffi-bindgen generate --library target/release/libindexd_ffi.so --language python --out-dir ../
+```
+
+MacOS:
+```shell
+cd sia-sdk-rs/
+cargo build --release --package=indexd_ffi
+cargo run --package=indexd_ffi --bin uniffi-bindgen generate --library target/release/libindexd_ffi.dylib --language python --out-dir ../
+mv target/release/libindexd_ffi.dylib ../
+```
+
+Windows:
+```powershell
+cd sia-sdk-rs/
+cargo build --release --package indexd_ffi
+cargo run --package indexd_ffi --bin uniffi-bindgen -- generate --library .\target\release\indexd_ffi.dll --language python --out-dir ../
+```
+
 ### Publisher (`publish_static.py`)
 
 | Argument | Description | Default |
