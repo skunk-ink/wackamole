@@ -467,6 +467,8 @@ def _uniffi_check_api_checksums(lib):
         raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     if lib.uniffi_indexd_ffi_checksum_func_set_logger() != 36651:
         raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    if lib.uniffi_indexd_ffi_checksum_func_validate_recovery_phrase() != 56714:
+        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     if lib.uniffi_indexd_ffi_checksum_method_download_cancel() != 11719:
         raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     if lib.uniffi_indexd_ffi_checksum_method_download_read_chunk() != 5666:
@@ -1020,6 +1022,11 @@ _UniffiLib.uniffi_indexd_ffi_fn_func_set_logger.argtypes = (
     ctypes.POINTER(_UniffiRustCallStatus),
 )
 _UniffiLib.uniffi_indexd_ffi_fn_func_set_logger.restype = None
+_UniffiLib.uniffi_indexd_ffi_fn_func_validate_recovery_phrase.argtypes = (
+    _UniffiRustBuffer,
+    ctypes.POINTER(_UniffiRustCallStatus),
+)
+_UniffiLib.uniffi_indexd_ffi_fn_func_validate_recovery_phrase.restype = None
 _UniffiLib.ffi_indexd_ffi_rustbuffer_alloc.argtypes = (
     ctypes.c_uint64,
     ctypes.POINTER(_UniffiRustCallStatus),
@@ -1297,6 +1304,9 @@ _UniffiLib.uniffi_indexd_ffi_checksum_func_generate_recovery_phrase.restype = ct
 _UniffiLib.uniffi_indexd_ffi_checksum_func_set_logger.argtypes = (
 )
 _UniffiLib.uniffi_indexd_ffi_checksum_func_set_logger.restype = ctypes.c_uint16
+_UniffiLib.uniffi_indexd_ffi_checksum_func_validate_recovery_phrase.argtypes = (
+)
+_UniffiLib.uniffi_indexd_ffi_checksum_func_validate_recovery_phrase.restype = ctypes.c_uint16
 _UniffiLib.uniffi_indexd_ffi_checksum_method_download_cancel.argtypes = (
 )
 _UniffiLib.uniffi_indexd_ffi_checksum_method_download_cancel.restype = ctypes.c_uint16
@@ -2431,14 +2441,34 @@ _UniffiTempAppKeyError = AppKeyError
 
 class AppKeyError:  # type: ignore
     class RecoveryPhrase(_UniffiTempAppKeyError):
+        def __init__(self, *values):
+            if len(values) != 1:
+                raise TypeError(f"Expected 1 arguments, found {len(values)}")
+            if not isinstance(values[0], str):
+                raise TypeError(f"unexpected type for tuple element 0 - expected 'str', got '{type(values[0])}'")
+            super().__init__(", ".join(map(repr, values)))
+            self._values = values
+
+        def __getitem__(self, index):
+            return self._values[index]
 
         def __repr__(self):
-            return "AppKeyError.RecoveryPhrase({})".format(repr(str(self)))
+            return "AppKeyError.RecoveryPhrase({})".format(str(self))
     _UniffiTempAppKeyError.RecoveryPhrase = RecoveryPhrase # type: ignore
     class AppIdLength(_UniffiTempAppKeyError):
+        def __init__(self, *values):
+            if len(values) != 1:
+                raise TypeError(f"Expected 1 arguments, found {len(values)}")
+            if not isinstance(values[0], int):
+                raise TypeError(f"unexpected type for tuple element 0 - expected 'int', got '{type(values[0])}'")
+            super().__init__(", ".join(map(repr, values)))
+            self._values = values
+
+        def __getitem__(self, index):
+            return self._values[index]
 
         def __repr__(self):
-            return "AppKeyError.AppIdLength({})".format(repr(str(self)))
+            return "AppKeyError.AppIdLength({})".format(str(self))
     _UniffiTempAppKeyError.AppIdLength = AppIdLength # type: ignore
 
 AppKeyError = _UniffiTempAppKeyError # type: ignore
@@ -2455,23 +2485,27 @@ class _UniffiConverterTypeAppKeyError(_UniffiConverterRustBuffer):
             )
         if variant == 2:
             return AppKeyError.AppIdLength(
-                _UniffiConverterString.read(buf),
+                _UniffiConverterUInt32.read(buf),
             )
         raise InternalError("Raw enum value doesn't match any cases")
 
     @staticmethod
     def check_lower(value):
         if isinstance(value, AppKeyError.RecoveryPhrase):
+            _UniffiConverterString.check_lower(value._values[0])
             return
         if isinstance(value, AppKeyError.AppIdLength):
+            _UniffiConverterUInt32.check_lower(value._values[0])
             return
 
     @staticmethod
     def write(value, buf):
         if isinstance(value, AppKeyError.RecoveryPhrase):
             buf.write_i32(1)
+            _UniffiConverterString.write(value._values[0], buf)
         if isinstance(value, AppKeyError.AppIdLength):
             buf.write_i32(2)
+            _UniffiConverterUInt32.write(value._values[0], buf)
 
 
 # ConnectError
@@ -2934,6 +2968,61 @@ class _UniffiConverterTypeObjectError(_UniffiConverterRustBuffer):
             buf.write_i32(1)
         if isinstance(value, ObjectError.Encoding):
             buf.write_i32(2)
+
+
+# SeedError
+# We want to define each variant as a nested class that's also a subclass,
+# which is tricky in Python.  To accomplish this we're going to create each
+# class separately, then manually add the child classes to the base class's
+# __dict__.  All of this happens in dummy class to avoid polluting the module
+# namespace.
+class SeedError(Exception):
+    pass
+
+_UniffiTempSeedError = SeedError
+
+class SeedError:  # type: ignore
+    class InvalidMnemonic(_UniffiTempSeedError):
+        def __init__(self, *values):
+            if len(values) != 1:
+                raise TypeError(f"Expected 1 arguments, found {len(values)}")
+            if not isinstance(values[0], str):
+                raise TypeError(f"unexpected type for tuple element 0 - expected 'str', got '{type(values[0])}'")
+            super().__init__(", ".join(map(repr, values)))
+            self._values = values
+
+        def __getitem__(self, index):
+            return self._values[index]
+
+        def __repr__(self):
+            return "SeedError.InvalidMnemonic({})".format(str(self))
+    _UniffiTempSeedError.InvalidMnemonic = InvalidMnemonic # type: ignore
+
+SeedError = _UniffiTempSeedError # type: ignore
+del _UniffiTempSeedError
+
+
+class _UniffiConverterTypeSeedError(_UniffiConverterRustBuffer):
+    @staticmethod
+    def read(buf):
+        variant = buf.read_i32()
+        if variant == 1:
+            return SeedError.InvalidMnemonic(
+                _UniffiConverterString.read(buf),
+            )
+        raise InternalError("Raw enum value doesn't match any cases")
+
+    @staticmethod
+    def check_lower(value):
+        if isinstance(value, SeedError.InvalidMnemonic):
+            _UniffiConverterString.check_lower(value._values[0])
+            return
+
+    @staticmethod
+    def write(value, buf):
+        if isinstance(value, SeedError.InvalidMnemonic):
+            buf.write_i32(1)
+            _UniffiConverterString.write(value._values[0], buf)
 
 
 # UploadError
@@ -5271,6 +5360,17 @@ def set_logger(logger: "Logger",level: "str") -> None:
         _UniffiConverterString.lower(level))
 
 
+def validate_recovery_phrase(phrase: "str") -> None:
+    """
+    Validates a BIP-32 recovery phrase.
+    """
+
+    _UniffiConverterString.check_lower(phrase)
+    
+    _uniffi_rust_call_with_error(_UniffiConverterTypeSeedError,_UniffiLib.uniffi_indexd_ffi_fn_func_validate_recovery_phrase,
+        _UniffiConverterString.lower(phrase))
+
+
 __all__ = [
     "InternalError",
     "AddressProtocol",
@@ -5280,6 +5380,7 @@ __all__ = [
     "EncryptionKeyParseError",
     "Error",
     "ObjectError",
+    "SeedError",
     "UploadError",
     "Account",
     "AppMeta",
@@ -5297,6 +5398,7 @@ __all__ = [
     "encoded_size",
     "generate_recovery_phrase",
     "set_logger",
+    "validate_recovery_phrase",
     "AppKey",
     "Download",
     "EncryptionKey",
