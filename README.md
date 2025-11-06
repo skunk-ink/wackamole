@@ -127,12 +127,14 @@ This script creates a gateway that can access websites stored on Sia using the w
 
 ### Example:
 1. Start the `gateway` using the share URL created by the publisher as seen in the `publish.py` example above.
+
     ```shell
     python gateway.py --share "https://indexd.example.com/objects/be096a7bbe67b3e3d1ba075c56b67d5e5c8a97b337b4d2e770c0d620e51ea29d/shared?sv=1794005151&sc=fiYwiWCw8ZolPoj2NA9IOgEf2iNFKND6hAUBFAcNzv4%3D&ss=6VWZ_iJ7tsuZZZozkoRXQLL9GiEvRVQly7C3ZERzBSCed2jQ3EEh44Z20HNjl_LjyAMpFR_8pBA5-Vxcc-fQDA%3D%3D#encryption_key=RDxfFXrc6GdMzAYwBv_istRyZLUE5FLdtCrtod81jTA=
     "
     ```
 
 2. When asked for your mnemonic you can either enter the one you used to publish the site, or generate a new one. Note: If you generate a new mnemonic you will need to grant the app authorization again using your app key.
+
    *Output*
     ```shell
     Enter mnemonic (or leave empty to generate new):
@@ -142,6 +144,7 @@ This script creates a gateway that can access websites stored on Sia using the w
     ```
 
 3. Once the gateway has started, open your browser to `http://127.0.0.1:8787` to view the website.
+
     *Output*
     ```shell
     Loaded ZIP with 1 entries.
