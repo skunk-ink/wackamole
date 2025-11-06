@@ -20,27 +20,30 @@ Linux:
 cargo build --release -p indexd_ffi
 cargo run -p indexd_ffi --bin uniffi-bindgen generate --library target/release/libindexd_ffi.so --language python --out-dir ../
 mv target/release/libindexd_ffi.so ../
+cd ../
 ```
 
 MacOS:
 ```shell
-cd sia-sdk-rs
 cargo build --release --package=indexd_ffi
 cargo run --package=indexd_ffi --bin uniffi-bindgen generate --library target/release/libindexd_ffi.dylib --language python --out-dir ../
 mv target/release/libindexd_ffi.dylib ../
+cd ../
 ```
 
 Windows:
 ```powershell
-cd sia-sdk-rs
 cargo build --release --package indexd_ffi
 cargo run --package indexd_ffi --bin uniffi-bindgen -- generate --library .\target\release\indexd_ffi.dll --language python --out-dir ../
 mv target\release\indexd_ffi.dll ../
+cd ../
 ```
 
-4. Return to `wackamole` root and run `publish.py` to publish a website on Sia, and run `gateway.py` to host a gateway to the site.
+4. From the `wackamole` root directory run `publish.py` to publish your website on Sia, and run `gateway.py` to host a gateway to the site.
 
 ## Publisher (`publish.py`)
+
+This script is used to create a `manifest.json` that is then zipped together with the users website and uploaded to the Sia network through an indexd node. The script uses `website/` by default as the location of the users website. This can be changed by using the `--site` flag.
 
 | Argument | Description | Default | Required |
 | ----- | ----- | ----- | ----- |
@@ -57,6 +60,7 @@ python publish.py --indexd https://indexd.yourdomain.tld
 
 ## Gateway (`gateway.py`)
 
+This script creates a gateway that can access websites stored on Sia using the websites share URL.
 
 | Argument | Description | Default | Required |
 | ----- | ----- | ----- | ----- |
