@@ -94,21 +94,21 @@ This script is used to create a `manifest.json` that is then zipped together wit
     ```shell
     Requesting app authorization…
     Open this URL to approve access:
-    https://indexd.skunk.ink/auth/connect/c1c803041792c7e0b08dc01e7c09fbf2
+    https://indexd.example.com/auth/connect/c1c803041792c7e0b08dc01e7c09fbf2
     ```
 
     Your website will then be uploaded to the network and once completed, you will receive a share url.
 
     *Output*
     ```shell
-    Created zip: C:\Users\murra\AppData\Local\Temp\site-1762469129.zip (208.0 B)
+    Created zip: C:\Users\user\AppData\Local\Temp\site-1762469129.zip (208.0 B)
     Using erasure coding: data=3, parity=9, inflight=6
     Uploading to Sia via indexd…
     208.0 B / 208.0 B (100.0%)
 
     ✅ Upload complete.
     Share URL (give this to a gateway):
-    https://indexd.skunk.ink/objects/be096a7bbe67b3e3d1ba075c56b67d5e5c8a97b337b4d2e770c0d620e51ea29d/shared?sv=1794005151&sc=fiYwiWCw8ZolPoj2NA9IOgEf2iNFKND6hAUBFAcNzv4%3D&ss=6VWZ_iJ7tsuZZZozkoRXQLL9GiEvRVQly7C3ZERzBSCed2jQ3EEh44Z20HNjl_LjyAMpFR_8pBA5-Vxcc-fQDA%3D%3D#encryption_key=RDxfFXrc6GdMzAYwBv_istRyZLUE5FLdtCrtod81jTA=
+    https://indexd.example.com/objects/be096a7bbe67b3e3d1ba075c56b67d5e5c8a97b337b4d2e770c0d620e51ea29d/shared?sv=1794005151&sc=fiYwiWCw8ZolPoj2NA9IOgEf2iNFKND6hAUBFAcNzv4%3D&ss=6VWZ_iJ7tsuZZZozkoRXQLL9GiEvRVQly7C3ZERzBSCed2jQ3EEh44Z20HNjl_LjyAMpFR_8pBA5-Vxcc-fQDA%3D%3D#encryption_key=RDxfFXrc6GdMzAYwBv_istRyZLUE5FLdtCrtod81jTA=
 
     Wrote manifest to: manifest.json
     ```
@@ -126,6 +126,28 @@ This script creates a gateway that can access websites stored on Sia using the w
 | `--port` | Port number to host on | `8787` |  |
 
 ### Example:
-```shell
-python gateway.py --share <INDEXD SHARE URL>
-```
+1. Start the `gateway` using the share URL created by the publisher as seen in the `publish.py` example above.
+    ```shell
+    python gateway.py --share "https://indexd.example.com/objects/be096a7bbe67b3e3d1ba075c56b67d5e5c8a97b337b4d2e770c0d620e51ea29d/shared?sv=1794005151&sc=fiYwiWCw8ZolPoj2NA9IOgEf2iNFKND6hAUBFAcNzv4%3D&ss=6VWZ_iJ7tsuZZZozkoRXQLL9GiEvRVQly7C3ZERzBSCed2jQ3EEh44Z20HNjl_LjyAMpFR_8pBA5-Vxcc-fQDA%3D%3D#encryption_key=RDxfFXrc6GdMzAYwBv_istRyZLUE5FLdtCrtod81jTA=
+    "
+    ```
+
+2. When asked for your mnemonic you can either enter the one you used to publish the site, or generate a new one. Note: If you generate a new mnemonic you will need to grant the app authorization again using your app key.
+   *Output*
+    ```shell
+    Enter mnemonic (or leave empty to generate new):
+    
+
+    mnemonic: seed urban monitor error upon number license float artefact useless lucky correct
+    ```
+
+3. Once the gateway has started, open your browser to `http://127.0.0.1:8787` to view the website.
+    *Output*
+    ```shell
+    Loaded ZIP with 1 entries.
+    Try: http://127.0.0.1:8787/
+    INFO:     Started server process [48104]
+    INFO:     Waiting for application startup.
+    INFO:     Application startup complete.
+    INFO:     Uvicorn running on http://127.0.0.1:8787 (Press CTRL+C to quit)
+    ```
