@@ -1,5 +1,5 @@
 # wackamole
-Wack-A-Mole is a decentralized arcade hosted on the Sia network.
+Wack-A-Mole is a static website publisher and gateway for hosting websites on the Sia Network.
 
 1. Clone Sia's SDK and build 
 ```shell
