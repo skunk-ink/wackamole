@@ -56,14 +56,14 @@ This script is used to create a `manifest.json` that is then zipped together wit
 
 ### Example:
 1. Create a new file named `index.html` inside of the `website/` folder. Copy an paste the following into the file and save.
-```html
-<html>
-    <title>Hello World!</title>
-    <body>
-        Hello World!
-    </body>
-</html>
-```
+    ```html
+    <html>
+        <title>Hello World!</title>
+        <body>
+            Hello World!
+        </body>
+    </html>
+    ```
 
 2. Run `publish.py` to upload your site to the Sia network.
 
@@ -71,11 +71,11 @@ This script is used to create a `manifest.json` that is then zipped together wit
     ```shell
     python publish.py --indexd https://indexd.yourdomain.tld
     ```
-When prompted for a mnemonic, you can either leave it empty to generate a new app seed, or enter a pre-existing seed.
+    When prompted for a mnemonic, you can either leave it empty to generate a new app seed, or enter a pre-existing seed.
 
-Next you will be prompted for app authorization inside of your browser. Paste your app key and click `Accept`.
+    Next you will be prompted for app authorization inside of your browser. Paste your app key and click `Accept`.
 
-Your website will then be uploaded to the network and once completed, you will receive a share url.
+    Your website will then be uploaded to the network and once completed, you will receive a share url.
 
     **Output**
     ```shell
