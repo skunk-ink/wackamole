@@ -2,20 +2,20 @@
 Wack-A-Mole is a static website publisher and gateway for hosting websites on the Sia Network.
 
 ## Setup
-1. Clone the `wackamole` repository and `cd` in to the folder.
+### 1. Clone the `wackamole` repository and `cd` in to the folder.
 ```shell
 git clone https://github.com/skunk-ink/wackamole
 cd wackamole
 ```
 
-2. From the `wackamole` root directory, clone Sia's SDK and `cd` into the folder.
+### 2. From the `wackamole` root directory, clone Sia's SDK and `cd` into the folder.
 ```shell
 git clone https://github.com/siafoundation/sia-sdk-rs
 cd sia-sdk-rs
 ```
 
-3. `cd` into the Sia SDK and build the SDK for your system:
-Linux:
+### 3. `cd` into the Sia SDK and build the SDK for your system:
+#### Linux:
 ```shell
 cargo build --release -p indexd_ffi
 cargo run -p indexd_ffi --bin uniffi-bindgen generate --library target/release/libindexd_ffi.so --language python --out-dir ../
@@ -23,7 +23,7 @@ mv target/release/libindexd_ffi.so ../
 cd ../
 ```
 
-MacOS:
+#### MacOS:
 ```shell
 cargo build --release --package=indexd_ffi
 cargo run --package=indexd_ffi --bin uniffi-bindgen generate --library target/release/libindexd_ffi.dylib --language python --out-dir ../
@@ -31,7 +31,7 @@ mv target/release/libindexd_ffi.dylib ../
 cd ../
 ```
 
-Windows:
+#### Windows:
 ```powershell
 cargo build --release --package indexd_ffi
 cargo run --package indexd_ffi --bin uniffi-bindgen -- generate --library .\target\release\indexd_ffi.dll --language python --out-dir ../
@@ -39,7 +39,7 @@ mv target\release\indexd_ffi.dll ../
 cd ../
 ```
 
-4. From the `wackamole` root directory run `publish.py` to publish your website on Sia, and run `gateway.py` to host a gateway to the site.
+### 4. From the `wackamole` root directory run `publish.py` to publish your website on Sia, and run `gateway.py` to host a gateway to the site.
 
 ## Publisher (`publish.py`)
 
