@@ -71,24 +71,28 @@ This script is used to create a `manifest.json` that is then zipped together wit
     ```shell
     python publish.py --indexd https://indexd.yourdomain.tld
     ```
-    When prompted for a mnemonic, you can either leave it empty to generate a new app seed, or enter a pre-existing seed.
-
-    Next you will be prompted for app authorization inside of your browser. Paste your app key and click `Accept`.
-
-    Your website will then be uploaded to the network and once completed, you will receive a share url.
-
-    **Output**
+    
+3. When prompted for a mnemonic, you can either leave it empty to generate a new app seed, or enter a pre-existing seed.
+    *Output*
     ```shell
     Enter mnemonic (or leave empty to generate new):
-
+    
 
     mnemonic: seed urban monitor error upon number license float artefact useless lucky correct
+    ```
 
+4. Next you will be prompted for app authorization inside of your browser. Paste your app key and click `Accept`.
+    *Output*
+    ```shell
     Requesting app authorization…
     Open this URL to approve access:
     https://indexd.skunk.ink/auth/connect/c1c803041792c7e0b08dc01e7c09fbf2
-    App authorized.
+    ```
 
+    Your website will then be uploaded to the network and once completed, you will receive a share url.
+
+    *Output*
+    ```shell
     Created zip: C:\Users\murra\AppData\Local\Temp\site-1762469129.zip (208.0 B)
     Using erasure coding: data=3, parity=9, inflight=6
     Uploading to Sia via indexd…
