@@ -1,6 +1,12 @@
 # wackamole
 Wack-A-Mole is a static website publisher and gateway for hosting websites on the Sia Network.
 
+- [Setup](#setup)
+- [Publisher (publish.py)](#publisher-publishpy)
+  - [Example](#example)
+- [Gateway (gateway.py)](#gateway-gatewaypy)
+  - [Example](#example-1)
+
 ## Setup
 ### 1. Clone the `wackamole` repository and `cd` in to the folder.
 ```shell
@@ -56,6 +62,7 @@ This script is used to create a `manifest.json` that is then zipped together wit
 
 ### Example:
 1. Create a new file named `index.html` inside of the `website/` folder. Copy an paste the following into the file and save.
+
     ```html
     <html>
         <title>Hello World!</title>
@@ -67,13 +74,13 @@ This script is used to create a `manifest.json` that is then zipped together wit
 
 2. Run `publish.py` to upload your site to the Sia network.
 
-    Run:
     ```shell
     python publish.py --indexd https://indexd.yourdomain.tld
     ```
     
 3. When prompted for a mnemonic, you can either leave it empty to generate a new app seed, or enter a pre-existing seed.
-    *Output*
+
+   *Output*
     ```shell
     Enter mnemonic (or leave empty to generate new):
     
@@ -82,6 +89,7 @@ This script is used to create a `manifest.json` that is then zipped together wit
     ```
 
 4. Next you will be prompted for app authorization inside of your browser. Paste your app key and click `Accept`.
+
     *Output*
     ```shell
     Requesting app authorization…
@@ -117,7 +125,7 @@ This script creates a gateway that can access websites stored on Sia using the w
 | `--host` | Host's IP address | `127.0.0.1` |  |
 | `--port` | Port number to host on | `8787` |  |
 
-**Example:**
+### Example:
 ```shell
 python gateway.py --share <INDEXD SHARE URL>
 ```
