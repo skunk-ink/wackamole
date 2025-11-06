@@ -67,39 +67,39 @@ This script is used to create a `manifest.json` that is then zipped together wit
 
 2. Run `publish.py` to upload your site to the Sia network.
 
-Run:
-```shell
-python publish.py --indexd https://indexd.yourdomain.tld
-```
+    Run:
+    ```shell
+    python publish.py --indexd https://indexd.yourdomain.tld
+    ```
 When prompted for a mnemonic, you can either leave it empty to generate a new app seed, or enter a pre-existing seed.
 
 Next you will be prompted for app authorization inside of your browser. Paste your app key and click `Accept`.
 
 Your website will then be uploaded to the network and once completed, you will receive a share url.
 
-**Output**
-```shell
-Enter mnemonic (or leave empty to generate new):
+    **Output**
+    ```shell
+    Enter mnemonic (or leave empty to generate new):
 
 
-mnemonic: seed urban monitor error upon number license float artefact useless lucky correct
+    mnemonic: seed urban monitor error upon number license float artefact useless lucky correct
 
-Requesting app authorization…
-Open this URL to approve access:
- https://indexd.skunk.ink/auth/connect/c1c803041792c7e0b08dc01e7c09fbf2
-App authorized.
+    Requesting app authorization…
+    Open this URL to approve access:
+    https://indexd.skunk.ink/auth/connect/c1c803041792c7e0b08dc01e7c09fbf2
+    App authorized.
 
-Created zip: C:\Users\murra\AppData\Local\Temp\site-1762469129.zip (208.0 B)
-Using erasure coding: data=3, parity=9, inflight=6
-Uploading to Sia via indexd…
-208.0 B / 208.0 B (100.0%)
+    Created zip: C:\Users\murra\AppData\Local\Temp\site-1762469129.zip (208.0 B)
+    Using erasure coding: data=3, parity=9, inflight=6
+    Uploading to Sia via indexd…
+    208.0 B / 208.0 B (100.0%)
 
-✅ Upload complete.
-Share URL (give this to a gateway):
-https://indexd.skunk.ink/objects/be096a7bbe67b3e3d1ba075c56b67d5e5c8a97b337b4d2e770c0d620e51ea29d/shared?sv=1794005151&sc=fiYwiWCw8ZolPoj2NA9IOgEf2iNFKND6hAUBFAcNzv4%3D&ss=6VWZ_iJ7tsuZZZozkoRXQLL9GiEvRVQly7C3ZERzBSCed2jQ3EEh44Z20HNjl_LjyAMpFR_8pBA5-Vxcc-fQDA%3D%3D#encryption_key=RDxfFXrc6GdMzAYwBv_istRyZLUE5FLdtCrtod81jTA=
+    ✅ Upload complete.
+    Share URL (give this to a gateway):
+    https://indexd.skunk.ink/objects/be096a7bbe67b3e3d1ba075c56b67d5e5c8a97b337b4d2e770c0d620e51ea29d/shared?sv=1794005151&sc=fiYwiWCw8ZolPoj2NA9IOgEf2iNFKND6hAUBFAcNzv4%3D&ss=6VWZ_iJ7tsuZZZozkoRXQLL9GiEvRVQly7C3ZERzBSCed2jQ3EEh44Z20HNjl_LjyAMpFR_8pBA5-Vxcc-fQDA%3D%3D#encryption_key=RDxfFXrc6GdMzAYwBv_istRyZLUE5FLdtCrtod81jTA=
 
-Wrote manifest to: manifest.json
-```
+    Wrote manifest to: manifest.json
+    ```
 
 ## Gateway (`gateway.py`)
 
