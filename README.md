@@ -12,6 +12,7 @@ Linux:
 cd sia-sdk-rs/
 cargo build --release -p indexd_ffi
 cargo run -p indexd_ffi --bin uniffi-bindgen generate --library target/release/libindexd_ffi.so --language python --out-dir ../
+mv target/release/libindexd_ffi.so ../
 ```
 
 MacOS:
@@ -27,6 +28,7 @@ Windows:
 cd sia-sdk-rs/
 cargo build --release --package indexd_ffi
 cargo run --package indexd_ffi --bin uniffi-bindgen -- generate --library .\target\release\indexd_ffi.dll --language python --out-dir ../
+mv target\release\indexd_ffi.dll ../
 ```
 
 ### Publisher (`publish_static.py`)
