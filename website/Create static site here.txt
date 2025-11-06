@@ -1,0 +1,1 @@
+Place your index.html and website files in this folder.

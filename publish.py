@@ -84,8 +84,8 @@ async def main():
     parser = argparse.ArgumentParser(description="Upload a static site (zipped) to Sia via remote indexd.")
     parser.add_argument("--indexd", dest="indexd_url", default=os.getenv("INDEXD_URL"), required=False,
                         help="Remote indexd URL, e.g. https://indexd.example.com")
-    parser.add_argument("--site", dest="site_dir", default="dist",
-                        help="Path to built site directory (default: dist)")
+    parser.add_argument("--site", dest="site_dir", default="website",
+                        help="Path to built site directory (default: website)")
     parser.add_argument("--out", dest="out_manifest", default="manifest.json",
                         help="Where to write manifest (default: manifest.json)")
     parser.add_argument("--app-name", default=os.getenv("APP_NAME", "My Static Site"))
