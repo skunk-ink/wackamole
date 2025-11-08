@@ -28,6 +28,7 @@
                                   (_:/           \::):):)\:::):):)
                                    `"             `""""`  `""""""`      
 """
+
 # gateway.py — serve a static site from an indexd *shared* URL (decrypts via SDK),
 # with .env-managed MNEMONIC and APP_ID_HEX. Works with various handle shapes.
 
@@ -49,7 +50,7 @@ from fastapi.responses import HTMLResponse, PlainTextResponse
 import uvicorn
 
 try:
-    import magic  # python-magic or python-magic-bin
+    import magic
 except Exception:
     magic = None
 
@@ -59,10 +60,6 @@ from indexd_ffi import (
     Sdk, AppKey, AppMeta, set_logger, Logger,
     DownloadOptions, generate_recovery_phrase
 )
-
-# ==============================
-# Utils
-# ==============================
 
 class PrintLogger(Logger):
     def debug(self, msg): print("DEBUG", msg)
@@ -104,7 +101,7 @@ def _extract_indexd_base(share_url: str) -> str:
     return f"{u.scheme}://{u.netloc}"
 
 def _load_or_prompt_env(env_path: str = ".env") -> tuple[str, bytes]:
-    # Ensure file exists so set_key can write to it
+    # Ensure file exists
     load_dotenv(env_path)
     if not os.path.exists(env_path):
         open(env_path, "a", encoding="utf-8").close()
@@ -125,13 +122,9 @@ def _load_or_prompt_env(env_path: str = ".env") -> tuple[str, bytes]:
 
     return mnemonic, app_id_bytes
 
-# ==============================
-# App state
-# ==============================
-
 app = FastAPI()
 ZIP = None               # type: zipfile.ZipFile | None
-ZIP_SET = set()          # type: set[str]
+ZIP_SET = set()
 ETAG = 'W/"boot"'
 STARTED_AT = datetime.now(timezone.utc).isoformat()
 DEFAULT_INDEXES = ("index.html","index.htm")
@@ -151,10 +144,6 @@ def find_index(prefix: str) -> str | None:
         if cand in ZIP_SET:
             return cand
     return None
-
-# ==============================
-# Routes
-# ==============================
 
 @app.get("/__health", response_class=PlainTextResponse)
 def health():
@@ -198,10 +187,6 @@ def _serve_member(name: str):
         "X-From": "zip-gateway",
     }
     return Response(data, media_type=_guess_mime(name), headers=headers)
-
-# ==============================
-# Robust handle reader
-# ==============================
 
 async def read_handle_bytes(handle, *, chunk_size: int = 1 << 20) -> bytes:
     # 1) Common "read all" shapes
@@ -376,18 +361,16 @@ def load_zip_into_memory(data: bytes):
     ETAG = 'W/"%s"' % hashlib.sha256(data).hexdigest()[:32]
     print(f"Loaded ZIP with {len(ZIP_SET)} entries.")
 
-# ==============================
-# CLI
-# ==============================
-
 def main():
-    p = argparse.ArgumentParser(description="Serve a static site from an indexd share URL (SDK-backed).")
-    p.add_argument("--share", required=True, help="Share URL printed by publish_static.py")
-    p.add_argument("--indexd", default=None, help="Indexd base URL (auto-detected from share if omitted)")
-    p.add_argument("--env", default=".env", help="Path to .env (default: ./.env)")
-    p.add_argument("--host", default="127.0.0.1")
-    p.add_argument("--port", type=int, default=8787)
-    args = p.parse_args()
+    parser = argparse.ArgumentParser(description="Serve a static site from an indexd share URL (SDK-backed).")
+    parser.add_argument("--share", required=True, help="Share URL printed by publish_static.py")
+    parser.add_argument("--indexd", default=None, help="Indexd base URL (auto-detected from share if omitted)")
+    parser.add_argument("--env", default=".env", help="Path to .env (default: ./.env)")
+    parser.add_argument("--host", default="127.0.0.1")
+    parser.add_argument("--port", type=int, default=8787)
+    parser.add_argument("--app-id", dest="app_id", default=os.getenv("APP_ID"))
+    parser.add_argument("--seed-phrase", dest="seed_phrase", default=os.getenv("SEED_PHRASE"))
+    args = parser.parse_args()
 
     mnemonic, app_id = _load_or_prompt_env(args.env)
     data = asyncio.run(fetch_zip_via_sdk(args.share, args.indexd, mnemonic, app_id))

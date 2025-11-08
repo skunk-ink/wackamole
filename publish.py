@@ -1,3 +1,4 @@
+
 """                      _..._ ___
                        .:::::::.  `"-._.-''.
                   ,   /:::::::::\     ':    \                     _._
@@ -28,10 +29,8 @@
                                   (_:/           \::):):)\:::):):)
                                    `"             `""""`  `""""""`      
 """
-
 # publish_static.py
 # Upload a static site (zipped) to a remote indexd node on Sia.
-# Adds CLI flags for erasure coding + concurrency and smarter defaults by file size.
 
 import asyncio
 from sys import stdin
@@ -47,12 +46,49 @@ from indexd_ffi import (
     UploadOptions, set_logger, Logger
 )
 
-# Simple console logger (optional)
+try:
+    from dotenv import load_dotenv
+    load_dotenv('.env')
+except Exception:
+    pass
+
 class PrintLogger(Logger):
     def debug(self, msg): print("DEBUG", msg)
     def info(self, msg): print("INFO", msg)
     def warning(self, msg): print("WARN", msg)
     def error(self, msg): print("ERROR", msg)
+
+def _parse_app_id(value) -> bytes:
+    if value is None:
+        return None
+    if isinstance(value, (bytes, bytearray)):
+        b = bytes(value)
+        if len(b) != 32:
+            raise ValueError(f"APP_ID must be 32 bytes, got {len(b)}")
+        return b
+    if isinstance(value, str):
+        s = value.strip()
+        # hex path
+        h = s[2:] if s.startswith(("0x","0X")) else s
+        try:
+            if len(h) == 64 and all(c in "0123456789abcdefABCDEF" for c in h):
+                return bytes.fromhex(h)
+        except Exception:
+            pass
+        # base64 path
+        import base64
+        for decoder in (base64.b64decode, base64.urlsafe_b64decode):
+            try:
+                b = decoder(s + "===")
+                if len(b) == 32:
+                    return b
+            except Exception:
+                pass
+        # integer path
+        if s.isdigit():
+            n = int(s, 10)
+            return n.to_bytes(32, "big", signed=False)
+    raise ValueError("Could not parse APP_ID into 32 bytes. Use 64-hex or base64.")
 
 def zip_directory(src_dir: Path) -> Path:
     assert src_dir.is_dir(), f"{src_dir} is not a directory"
@@ -70,11 +106,9 @@ def human_bytes(n: int) -> str:
         n /= 1024.0
 
 async def maybe_await(value):
-    """Await the value if it's a coroutine; otherwise return it as-is."""
     return await value if asyncio.iscoroutine(value) else value
 
 async def main():
-    # Windows compatibility for some async networking stacks
     if sys.platform.startswith("win"):
         try:
             asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
@@ -82,30 +116,21 @@ async def main():
             pass
 
     parser = argparse.ArgumentParser(description="Upload a static site (zipped) to Sia via remote indexd.")
-    parser.add_argument("--indexd", dest="indexd_url", default=os.getenv("INDEXD_URL"), required=False,
-                        help="Remote indexd URL, e.g. https://indexd.example.com")
-    parser.add_argument("--site", dest="site_dir", default="website",
-                        help="Path to built site directory (default: website)")
-    parser.add_argument("--out", dest="out_manifest", default="manifest.json",
-                        help="Where to write manifest (default: manifest.json)")
+    parser.add_argument("--indexd", dest="indexd_url", default=os.getenv("INDEXD_URL"), required=False)
+    parser.add_argument("--site", dest="site_dir", default="website")
+    parser.add_argument("--out", dest="out_manifest", default="manifest.json")
     parser.add_argument("--app-name", default=os.getenv("APP_NAME", "My Static Site"))
     parser.add_argument("--app-desc", default=os.getenv("APP_DESC", "Publishes static sites to Sia via indexd"))
     parser.add_argument("--service-url", default=os.getenv("SERVICE_URL", "https://example.com"))
     parser.add_argument("--logo-url", default=os.getenv("LOGO_URL"))
     parser.add_argument("--callback-url", default=os.getenv("CALLBACK_URL"))
-    parser.add_argument("--share-days", type=int, default=365,
-                        help="How long the share link is valid (default: 365)")
-
-    # New knobs
-    parser.add_argument("--data", type=int, default=None,
-                        help="Number of data shards (overrides smart defaults)")
-    parser.add_argument("--parity", type=int, default=None,
-                        help="Number of parity shards (overrides smart defaults)")
-    parser.add_argument("--inflight", type=int, default=6,
-                        help="Max shards uploading in parallel (default: 6)")
-    parser.add_argument("--chunk-mib", type=int, default=1,
-                        help="Upload chunk size in MiB (default: 1)")
-
+    parser.add_argument("--share-days", type=int, default=365)
+    parser.add_argument("--app-id", dest="app_id", default=os.getenv("APP_ID"))
+    parser.add_argument("--seed-phrase", dest="seed_phrase", default=os.getenv("SEED_PHRASE"))
+    parser.add_argument("--data", type=int, default=None)
+    parser.add_argument("--parity", type=int, default=None)
+    parser.add_argument("--inflight", type=int, default=6)
+    parser.add_argument("--chunk-mib", type=int, default=1)
     args = parser.parse_args()
 
     if not args.indexd_url:
@@ -114,27 +139,37 @@ async def main():
 
     set_logger(PrintLogger(), "INFO")
 
-    # Identity input (simple interactive flow used in your version)
-    print("Enter mnemonic (or leave empty to generate new):")
-    mnemonic = stdin.readline().strip()
-    if not mnemonic:
-        mnemonic = generate_recovery_phrase()
-    print("\nmnemonic:", mnemonic)
+    if not args.seed_phrase:
+        print("Enter mnemonic (or leave empty to generate new):")
+        mnemonic = stdin.readline().strip()
+        if not mnemonic:
+            mnemonic = generate_recovery_phrase()
+        print("\nmnemonic:", mnemonic)
+    else:
+        mnemonic = args.seed_phrase
 
-    # Fixed app id for reproducibility (matches your edited script)
-    app_id = b'\x01' * 32
-    app_key = AppKey(mnemonic, app_id)
+    if not args.app_id:
+        app_id = b'\x01' * 32
+    else:
+        app_id = args.app_id
+
+    try:
+        app_id_bytes = _parse_app_id(app_id)
+    except ValueError as e:
+        print(f"ERROR: {e}")
+        sys.exit(2)
+
+    app_key = AppKey(mnemonic, app_id_bytes)
     sdk = Sdk(args.indexd_url, app_key)
 
-    # One-time connect/approve flow
     if not await sdk.connected():
         print("\nRequesting app authorization…")
         resp = await sdk.request_app_connection(AppMeta(
             name=args.app_name,
             description=args.app_desc,
             service_url=args.service_url,
-            logo_url=args.logo_url if args.logo_url else None,
-            callback_url=args.callback_url if args.callback_url else None
+            logo_url=args.logo_url or None,
+            callback_url=args.callback_url or None
         ))
         print("Open this URL to approve access:\n", resp.response_url)
         try:
@@ -147,13 +182,13 @@ async def main():
             sys.exit(1)
         print("App authorized.")
 
-    # Prepare the zip
+    # Prepare the zipped site archive
     site_dir = Path(args.site_dir).resolve()
     zip_path = zip_directory(site_dir)
     size = zip_path.stat().st_size
     print(f"\nCreated zip: {zip_path} ({human_bytes(size)})")
 
-    # Smarter erasure-coding defaults by size, unless overridden
+    # Erasure-coding defaults by size, unless overridden
     if args.data is None or args.parity is None:
         if size <= 8 * 1024 * 1024:          # <= 8 MiB
             data_shards, parity_shards = 3, 9
@@ -165,7 +200,7 @@ async def main():
         data_shards, parity_shards = args.data, args.parity
 
     print(f"Using erasure coding: data={data_shards}, parity={parity_shards}, inflight={args.inflight}")
-
+    
     # Metadata
     metadata = {
         "type": "zip",
@@ -201,11 +236,10 @@ async def main():
     print()
     obj = await up.finalize()
 
-    # Signed share URL (works for both sync or async implementations)
+    # Signed share URL
     valid_until = datetime.now(timezone.utc) + timedelta(days=args.share_days)
     signed_url = await maybe_await(sdk.share_object(obj, valid_until))
 
-    # Try to include a sealed id if available (works across sync/async shapes)
     sealed_id = None
     try:
         if hasattr(obj, "seal"):
