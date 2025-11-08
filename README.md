@@ -197,6 +197,6 @@ Returns `200 OK` if the site zip is loaded and accessible.
 
 ---
 
-## 📜 License
+## License
 
 See [LICENSE](LICENSE).
