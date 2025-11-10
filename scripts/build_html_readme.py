@@ -1,10 +1,40 @@
 #!/usr/bin/env python3
-"""
-Generate website/index.html from README.md using a clean HTML template.
 
-- Converts README.md → HTML (headings, lists, code, tables, etc.)
-- Injects into website/index.html.template
-- Auto-scrolls to the section describing where to put your website files
+# Generate website/index.html from README.md using a clean HTML template.
+
+# - Converts README.md → HTML (headings, lists, code, tables, etc.)
+# - Injects into website/index.html.template
+# - Auto-scrolls to the section describing where to put your website files
+
+"""                      _..._ ___
+                       .:::::::.  `"-._.-''.
+                  ,   /:::::::::\     ':    \                     _._
+                  \:-::::::::::::\     :.    |     /|.-'         /:::\ 
+                   \::::::::\:::::|    ':     |   |  /           |:::|
+                    `:::::::|:::::\     ':    |   `\ |    __     |\::/\ 
+                       -:::-|::::::|    ':    |  .`\ .\_.'  `.__/      |
+                            |::::::\    ':.   |   \ ';:: /.-._   ,    /
+                            |:::::::|    :.   /   ,`\;:: \'./0)  |_.-/
+                            ;:::::::|    ':  |    \.`;::.   ``   |  |
+                             \::::::/    :'  /     _\::::'      /  /
+                              \::::|   :'   /    ,=:;::/           |
+                               \:::|   :'  |    (='` //        /   |
+                                \::\   `:  /     '--' |       /\   |
+  GITHUB.COM/SKUNK-INK           \:::.  `:_|.-"`"-.    \__.-'/::\  |
+░▒█▀▀▀█░▒█░▄▀░▒█░▒█░▒█▄░▒█░▒█░▄▀  '::::.:::...:::. '.       /:::|  |
+░░▀▀▀▄▄░▒█▀▄░░▒█░▒█░▒█▒█▒█░▒█▀▄░   '::/::::::::::::. '-.__.:::::|  |
+░▒█▄▄▄█░▒█░▒█░░▀▄▄▀░▒█░░▀█░▒█░▒█     |::::::::::::\::..../::::::| /
+                                     |:::::::::::::|::::/::::::://
+              ░▒▀█▀░▒█▄░▒█░▒█░▄▀     \:::::::::::::|'::/::::::::/
+              ░░▒█░░▒█▒█▒█░▒█▀▄░     /\::::::::::::/  /:::::::/:|
+              ░▒▄█▄░▒█░░▀█░▒█░▒█    |::';:::::::::/   |::::::/::;
+            build_html_readme.py    |:::/`-:::::;;-._ |:::::/::/
+                                    |:::|  `-::::\   `|::::/::/
+                                    |:::|     \:::\   \:::/::/
+                                   /:::/       \:::\   \:/\:/
+                                  (_::/         \:::;__ \\_\\___
+                                  (_:/           \::):):)\:::):):)
+                                   `"             `""""`  `""""""`      
 """
 
 from pathlib import Path
