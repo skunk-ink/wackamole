@@ -138,12 +138,12 @@ def _dir_is_empty_or_only_placeholder(site_dir: Path) -> bool:
 
 def _run_demo_builder(site_dir: Path):
     """
-    Try to run scripts/build_demo_site.py (preferred).
+    Try to run scripts/build_demo.py (preferred).
     If not found, fall back to a minimal inline generator.
     """
     root = Path(__file__).parent.resolve()
     candidates = [
-        root / "scripts" / "build_demo_website.py",
+        root / "scripts" / "build_demo.py",
     ]
     for script in candidates:
         if script.exists():
