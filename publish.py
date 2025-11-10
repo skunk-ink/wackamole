@@ -205,7 +205,6 @@ async def main():
     metadata = {
         "type": "zip",
         "created_at": datetime.now(timezone.utc).isoformat(),
-        "original_dir": str(site_dir),
         "filename": zip_path.name,
         "content": "static-website",
         "hint": "Serve by unzipping in-memory or via ranged reads"
