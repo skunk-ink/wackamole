@@ -42,8 +42,9 @@ import posixpath
 import secrets
 import sys
 import zipfile
+import json
 from sys import stdin
-from pathlib import PurePosixPath
+from pathlib import Path, PurePosixPath
 from urllib.parse import urlparse
 from datetime import datetime, timezone
 
@@ -123,6 +124,13 @@ def _load_or_prompt_env(env_path: str = ".env") -> tuple[str, bytes]:
         app_id_bytes = bytes.fromhex(app_id_hex)
 
     return mnemonic, app_id_bytes
+
+def _load_manifest(path: Path) -> tuple[str | None, str | None]:
+    try:
+        m = json.loads(path.read_text(encoding="utf-8"))
+        return m.get("share_url"), m.get("indexd_url")
+    except Exception:
+        return None, None
 
 app = FastAPI()
 ZIP = None               # type: zipfile.ZipFile | None
@@ -306,7 +314,7 @@ async def read_handle_bytes(handle, *, chunk_size: int = 1 << 20) -> bytes:
 # SDK download (resolve → download_shared)
 # ==============================
 
-async def fetch_zip_via_sdk(share_url: str, indexd_base: str | None, mnemonic: str, app_id: bytes) -> bytes:
+async def fetch_zip_via_sdk(share_url: str, indexd_base: str | None, *, no_auth: bool, env_path: str, auth_fallback: bool) -> bytes:
     # Windows event loop policy (helps some async stacks)
     if sys.platform.startswith("win"):
         try:
@@ -318,9 +326,29 @@ async def fetch_zip_via_sdk(share_url: str, indexd_base: str | None, mnemonic: s
         indexd_base = _extract_indexd_base(share_url)
 
     set_logger(PrintLogger(), "info")
-    sdk = Sdk(indexd_base, AppKey(mnemonic, app_id))
 
-    # Ensure connection — REQUIRED for shared_object on your build
+    # Prefer "no-auth" path: ephemeral key, do NOT request approval.
+    if no_auth:
+        ephemeral_mnemonic = generate_recovery_phrase()
+        ephemeral_app_id = secrets.token_bytes(32)
+        sdk = Sdk(indexd_base, AppKey(ephemeral_mnemonic, ephemeral_app_id))
+        try:
+            # Directly try the shared-object flow without checking sdk.connected()
+            ref = await maybe_await(sdk.shared_object(share_url))
+            handle = await maybe_await(sdk.download_shared(ref, DownloadOptions(max_inflight=6)))
+            data = await read_handle_bytes(handle)
+            if not data.startswith(b"PK\x03\x04"):
+                raise RuntimeError("Downloaded bytes are not a ZIP (missing PK header).")
+            return data
+        except Exception as e:
+            if not auth_fallback:
+                raise
+            print("No-auth path failed; attempting interactive auth fallback…")
+            # fall-through to auth path below
+
+    # Auth path: ensure connection approved, then download
+    mnemonic, app_id = _load_or_prompt_env(env_path)
+    sdk = Sdk(indexd_base, AppKey(mnemonic, app_id))
     is_connected = await maybe_await(sdk.connected()) if hasattr(sdk, "connected") else True
     if not is_connected:
         resp = await maybe_await(sdk.request_app_connection(AppMeta(
@@ -340,18 +368,11 @@ async def fetch_zip_via_sdk(share_url: str, indexd_base: str | None, mnemonic: s
         if not ok:
             raise RuntimeError("Authorization was not granted")
 
-    # Resolve the share URL → SharedObject
     ref = await maybe_await(sdk.shared_object(share_url))
-
-    # Download from the SharedObject
     handle = await maybe_await(sdk.download_shared(ref, DownloadOptions(max_inflight=6)))
     data = await read_handle_bytes(handle)
-
-    # Sanity check: must be a ZIP
     if not data.startswith(b"PK\x03\x04"):
-        raise RuntimeError("Downloaded bytes are not a ZIP (missing 'PK\\x03\\x04' header). "
-                           "Does the share point to a zip bundle?")
-
+        raise RuntimeError("Downloaded bytes are not a ZIP (missing PK header).")
     return data
 
 def load_zip_into_memory(data: bytes):
@@ -365,17 +386,41 @@ def load_zip_into_memory(data: bytes):
 
 def main():
     parser = argparse.ArgumentParser(description="Serve a static site from an indexd share URL (SDK-backed).")
-    parser.add_argument("--share", required=True, help="Share URL printed by publish_static.py")
-    parser.add_argument("--indexd", default=None, help="Indexd base URL (auto-detected from share if omitted)")
-    parser.add_argument("--env", default=".env", help="Path to .env (default: ./.env)")
+    parser.add_argument("--share", help="Share URL printed by publish.py")
+    parser.add_argument("--manifest", default="manifest.json", help="Path to manifest.json (auto-used if --share not given)")
+    parser.add_argument("--indexd", default=None, help="Indexd base URL (auto-detected from share or manifest if omitted)")
+    parser.add_argument("--env", default=".env", help="Path to .env (used only if auth fallback is needed)")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8787)
-    parser.add_argument("--app-id", dest="app_id", default=os.getenv("APP_ID"))
-    parser.add_argument("--seed-phrase", dest="seed_phrase", default=os.getenv("SEED_PHRASE"))
+    parser.add_argument("--no-auth", dest="no_auth", action="store_true", default=True,
+                        help="Try to fetch using only the share URL without app approval (default: on)")
+    parser.add_argument("--auth-fallback", dest="auth_fallback", action="store_true", default=True,
+                        help="If no-auth fails, fall back to interactive auth (default: on)")
     args = parser.parse_args()
 
-    mnemonic, app_id = _load_or_prompt_env(args.env)
-    data = asyncio.run(fetch_zip_via_sdk(args.share, args.indexd, mnemonic, app_id))
+    # If no --share and manifest exists, load from manifest
+    if not args.share:
+        mpath = Path(args.manifest)
+        if mpath.exists():
+            share_from_m, indexd_from_m = _load_manifest(mpath)
+            if share_from_m:
+                args.share = share_from_m
+            if not args.indexd and indexd_from_m:
+                args.indexd = indexd_from_m
+
+    if not args.share:
+        print("ERROR: Provide --share or ensure manifest.json exists with a share_url.")
+        sys.exit(2)
+
+    # Fetch ZIP (no-auth first, with optional auth fallback)
+    data = asyncio.run(fetch_zip_via_sdk(
+        args.share,
+        args.indexd,
+        no_auth=args.no_auth,
+        env_path=args.env,
+        auth_fallback=args.auth_fallback
+    ))
+
     load_zip_into_memory(data)
     print(f"Try: http://{args.host}:{args.port}/")
     uvicorn.run(app, host=args.host, port=args.port)
