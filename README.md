@@ -19,6 +19,7 @@ It includes:
 - [Usage](#usage)
   - [Publisher (`publish.py`)](#publisher-publishpy)
   - [Gateway (`gatewaypy`)](#gateway-gatewaypy)
+  - [Build example site (`examples/build_html_readme.py`)](#build-example-site-examplesbuild_html_readmepy)
 - [Configuration](#configuration)
 - [Health Checks](#health-checks)
 - [Troubleshooting](#troubleshooting)
