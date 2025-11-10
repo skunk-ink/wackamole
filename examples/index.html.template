@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Wack-A-Mole — README</title>
+  <style>
+    :root{--bg:#f8fafc;--fg:#111827;--card:#ffffff;--muted:#6b7280;--surface:#f3f4f6;--ring:#facc15;}
+    @media (prefers-color-scheme: dark) {
+      :root{--bg:#0f172a;--fg:#e5e7eb;--card:#111827;--muted:#94a3b8;--surface:#1f2937;--ring:#eab308;}
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,Ubuntu,"Helvetica Neue",Arial}
+    header{position:sticky;top:0;z-index:10;background:var(--card);border-bottom:1px solid var(--surface);padding:0.9rem 1rem}
+    .wrap{max-width:980px;margin:0 auto;display:flex;gap:.75rem;align-items:center}
+    .brand{font-weight:700;font-size:1rem}
+    .tag{font-size:.85rem;color:var(--muted)}
+    main{max-width:980px;margin:1.25rem auto;padding:0 1rem}
+    .card{background:var(--card);border:1px solid var(--surface);border-radius:12px;box-shadow:0 2px 12px rgba(0,0,0,.05)}
+    .pad{padding:1.4rem}
+    h1,h2,h3{line-height:1.25}
+    h2,h3{margin-top:1.6rem}
+    pre,code{background:var(--surface)}
+    code{padding:.15rem .35rem;border-radius:.35rem}
+    pre{padding:1rem;border-radius:.6rem;overflow:auto}
+    a{color:#2563eb;text-decoration:none} a:hover{text-decoration:underline}
+    .highlight{background:#fffbeb;border-left:4px solid var(--ring);padding:.75rem;border-radius:.5rem;margin:.75rem 0}
+    .muted{color:var(--muted)}
+    .hint{font-size:.9rem;margin-top:.25rem}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <div class="brand">🕹️ Wack-A-Mole</div>
+      <div class="tag">Decentralized Site Publisher & Gateway</div>
+      <div style="margin-left:auto" class="muted hint">This page is generated from README.md</div>
+    </div>
+  </header>
+  <main>
+    <div class="card pad" id="readme">
+      {{README_HTML}}
+    </div>
+  </main>
+  <script>
+    // Try to focus the most relevant section: where to put your site / how to pass --site
+    (function () {
+      const candidatesById = [
+        "publisher-publishpy",
+        "usage",
+        "setup",
+        "website",
+        "configuration"
+      ];
+      const candidatesByText = [
+        "--site",
+        "Path to built site directory",
+        "website/"
+      ];
+      function highlight(el){
+        if(!el) return;
+        const box = document.createElement("div");
+        box.className = "highlight";
+        box.innerHTML = "<strong>Start here</strong>: This section explains where your website files go and how to point the publisher to them.";
+        el.insertAdjacentElement("afterend", box);
+        el.scrollIntoView({behavior:"smooth", block:"start"});
+      }
+      function findById(){
+        for (const id of candidatesById){
+          const el = document.getElementById(id);
+          if (el && /^h[1-6]$/i.test(el.tagName)) return el;
+        }
+        return null;
+      }
+      function findByText(){
+        const headings = Array.from(document.querySelectorAll("h1,h2,h3,h4,h5,h6"));
+        for (const h of headings){
+          const t = h.textContent || "";
+          for (const s of candidatesByText){
+            if (t.toLowerCase().includes(s.toLowerCase())) return h;
+          }
+        }
+        // fallback: look for the table cell describing --site
+        const cells = Array.from(document.querySelectorAll("td,th,p,li"));
+        for (const c of cells){
+          if ((c.textContent||"").includes("--site")) {
+            // bubble to nearest heading above
+            let p = c;
+            while (p && p.previousElementSibling){
+              p = p.previousElementSibling;
+              if (p && /^h[1-6]$/i.test(p.tagName)) return p;
+            }
+          }
+        }
+        return null;
+      }
+      window.addEventListener("load", function(){
+        let target = findById() || findByText();
+        if (target) highlight(target);
+      });
+    })();
+  </script>
+</body>
+</html>
