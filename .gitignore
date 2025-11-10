@@ -4,6 +4,10 @@ sia-sdk-rs/
 libindexd_ffi.so
 indexd_ffi.py
 indexd_ffi.dll
+website/assets/
+website/css/
+website/js/
+*.html
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

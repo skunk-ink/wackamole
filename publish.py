@@ -36,7 +36,7 @@
 
 import asyncio
 from sys import stdin
-import argparse, os, sys, json, time, webbrowser, tempfile, zipfile
+import argparse, os, sys, json, time, webbrowser, tempfile, zipfile, subprocess
 from pathlib import Path
 from datetime import datetime, timedelta, timezone
 
@@ -110,6 +110,60 @@ def human_bytes(n: int) -> str:
 async def maybe_await(value):
     return await value if asyncio.iscoroutine(value) else value
 
+PLACEHOLDER_NAME = "PLACE STATIC SITE HERE.txt"
+
+def _site_flag_was_passed(argv: list[str]) -> bool:
+    # Detect explicit --site usage (either "--site" then value OR "--site=value")
+    for a in argv:
+        if a == "--site" or a.startswith("--site="):
+            return True
+    return False
+
+def _dir_is_empty_or_only_placeholder(site_dir: Path) -> bool:
+    if not site_dir.exists():
+        return True
+    entries = []
+    for p in site_dir.iterdir():
+        # Ignore hidden files/dirs like .DS_Store, .gitkeep, etc.
+        if p.name.startswith("."):
+            continue
+        # Keep everything else
+        entries.append(p.name)
+    if not entries:
+        return True
+    # If there’s exactly one non-hidden entry and it’s the placeholder, treat as empty
+    if len(entries) == 1 and entries[0] == PLACEHOLDER_NAME:
+        return True
+    return False
+
+def _run_demo_builder(site_dir: Path):
+    """
+    Try to run scripts/build_demo_site.py (preferred).
+    If not found, fall back to a minimal inline generator.
+    """
+    root = Path(__file__).parent.resolve()
+    candidates = [
+        root / "scripts" / "build_demo_website.py",
+    ]
+    for script in candidates:
+        if script.exists():
+            print(f"Generating demo site via: {script} --dir {site_dir}")
+            # Use the current Python executable for maximum cross-platform compatibility.
+            subprocess.check_call([sys.executable, str(script), "--dir", str(site_dir), "--force"])
+            return
+
+    # Fallback (shouldn’t happen in your repo): create a tiny demo
+    print("build_demo_site.py not found — creating a minimal demo site inline.")
+    (site_dir / "css").mkdir(parents=True, exist_ok=True)
+    (site_dir / "js").mkdir(parents=True, exist_ok=True)
+    (site_dir / "assets").mkdir(parents=True, exist_ok=True)
+    (site_dir / "index.html").write_text(
+        "<!doctype html><meta charset='utf-8'><title>Demo</title>"
+        "<h1>Wack-A-Mole Demo</h1><p>Replace this with your site.</p>", encoding="utf-8"
+    )
+    (site_dir / "css" / "styles.css").write_text("body{font-family:system-ui}", encoding="utf-8")
+    (site_dir / "js" / "app.js").write_text("console.log('demo');", encoding="utf-8")
+
 async def main():
     if sys.platform.startswith("win"):
         try:
@@ -134,6 +188,24 @@ async def main():
     parser.add_argument("--inflight", type=int, default=6)
     parser.add_argument("--chunk-mib", type=int, default=1)
     args = parser.parse_args()
+
+    site_flag_present = _site_flag_was_passed(sys.argv[1:])
+    site_dir = Path(args.site_dir).resolve()
+
+    if not site_flag_present and site_dir.name == "website":
+        # Only auto-build if user didn't explicitly choose a different --site
+        if _dir_is_empty_or_only_placeholder(site_dir):
+            print(f"ℹ️  No custom site detected in {site_dir} (empty or only '{PLACEHOLDER_NAME}').")
+            _run_demo_builder(site_dir)
+        else:
+            # If the placeholder file exists alongside other files, quietly ignore it.
+            placeholder = site_dir / PLACEHOLDER_NAME
+            if placeholder.exists():
+                try:
+                    placeholder.unlink()
+                    print(f"Removed placeholder file: {placeholder}")
+                except Exception:
+                    pass
 
     if not args.indexd_url:
         print("ERROR: --indexd (or INDEXD_URL env) is required.")
@@ -185,7 +257,7 @@ async def main():
         print("App authorized.")
 
     # Prepare the zipped site archive
-    site_dir = Path(args.site_dir).resolve()
+    # (site_dir may have been auto-populated above)
     zip_path = zip_directory(site_dir)
     size = zip_path.stat().st_size
     print(f"\nCreated zip: {zip_path} ({human_bytes(size)})")

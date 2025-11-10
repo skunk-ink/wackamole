@@ -24,6 +24,7 @@
       background: var(--card); border-bottom: 1px solid var(--surface);
       padding: 0.9rem 1rem;
     }
+    .logo{width:88px;height:auto;display:block;margin:0 auto 1rem}
     .wrap { max-width: 980px; margin: 0 auto; display: flex; gap: .75rem; align-items: center; }
     .brand { font-weight: 700; font-size: 1rem; }
     .tag { font-size: .85rem; color: var(--muted); }
@@ -79,7 +80,7 @@
     <div class="wrap">
       <div class="brand">Wack-A-Mole</div>
       <div class="tag">Decentralized Site Publisher & Gateway</div>
-      <div style="margin-left:auto" class="muted hint">This page is generated from README.md</div>
+      <img class="logo" src="assets/wackamole-demo.svg" alt="Wack-A-Mole demo logo" />
     </div>
   </header>
   <main>
