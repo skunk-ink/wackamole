@@ -174,6 +174,11 @@ Uvicorn running on http://127.0.0.1:8787 (Press CTRL+C to quit)
 pip install markdown pygments
 ```
 
+**Build example site by running:**
+```shell
+python examples/build_html_readme.py
+```
+
 ---
 
 ## Configuration
