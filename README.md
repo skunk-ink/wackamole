@@ -1,7 +1,7 @@
 # Wack-A-Mole Site Decentralization
 **Decentralized Static-Site Publisher & Gateway for the Sia Network**
 
-Wack-A-Mole is a publishing framework that lets you upload any static website to the **Sia Network** through a remote **Indexd** node and serve it directly from decentralized storage — no central server required.
+Wack-A-Mole is a publishing framework that lets you upload any static website to the [Sia Network](https://sia.tech) through a remote `indexd` node and serve it directly from decentralized storage — no central server required.
 
 It includes:
 
@@ -161,6 +161,16 @@ Output:
 Loaded ZIP with 42 entries.
 Try: http://127.0.0.1:8787/
 Uvicorn running on http://127.0.0.1:8787 (Press CTRL+C to quit)
+```
+
+---
+
+### Build example site (examples/build_html_readme.py)
+
+**Requirements:**
+
+```shell
+pip install markdown pygments
 ```
 
 ---

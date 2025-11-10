@@ -1,3 +1,7 @@
+#!/usr/bin/env python3
+
+# publish_static.py
+# Upload a static site (zipped) to a remote indexd node on Sia.
 
 """                      _..._ ___
                        .:::::::.  `"-._.-''.
@@ -29,8 +33,6 @@
                                   (_:/           \::):):)\:::):):)
                                    `"             `""""`  `""""""`      
 """
-# publish_static.py
-# Upload a static site (zipped) to a remote indexd node on Sia.
 
 import asyncio
 from sys import stdin

@@ -1,3 +1,8 @@
+#!/usr/bin/env python3
+
+# gateway.py — serve a static site from an indexd *shared* URL (decrypts via SDK),
+# with .env-managed MNEMONIC and APP_ID_HEX. Works with various handle shapes.
+
 """                      _..._ ___
                        .:::::::.  `"-._.-''.
                   ,   /:::::::::\     ':    \                     _._
@@ -28,9 +33,6 @@
                                   (_:/           \::):):)\:::):):)
                                    `"             `""""`  `""""""`      
 """
-
-# gateway.py — serve a static site from an indexd *shared* URL (decrypts via SDK),
-# with .env-managed MNEMONIC and APP_ID_HEX. Works with various handle shapes.
 
 import argparse
 import asyncio
