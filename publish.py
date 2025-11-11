@@ -110,6 +110,8 @@ def human_bytes(n: int) -> str:
 async def maybe_await(value):
     return await value if asyncio.iscoroutine(value) else value
 
+# ---------- NEW: demo site auto-generation helpers ----------
+
 PLACEHOLDER_NAME = "PLACE STATIC SITE HERE.txt"
 
 def _site_flag_was_passed(argv: list[str]) -> bool:
@@ -138,12 +140,13 @@ def _dir_is_empty_or_only_placeholder(site_dir: Path) -> bool:
 
 def _run_demo_builder(site_dir: Path):
     """
-    Try to run scripts/build_demo.py (preferred).
+    Try to run scripts/build_demo_site.py (preferred).
     If not found, fall back to a minimal inline generator.
     """
     root = Path(__file__).parent.resolve()
     candidates = [
-        root / "scripts" / "build_demo.py",
+        root / "scripts" / "build_demo_site.py",
+        root / "build_demo_site.py",
     ]
     for script in candidates:
         if script.exists():
@@ -163,6 +166,8 @@ def _run_demo_builder(site_dir: Path):
     )
     (site_dir / "css" / "styles.css").write_text("body{font-family:system-ui}", encoding="utf-8")
     (site_dir / "js" / "app.js").write_text("console.log('demo');", encoding="utf-8")
+
+# ------------------------------------------------------------
 
 async def main():
     if sys.platform.startswith("win"):
@@ -189,6 +194,7 @@ async def main():
     parser.add_argument("--chunk-mib", type=int, default=1)
     args = parser.parse_args()
 
+    # ---------- NEW: auto-generate demo site when appropriate ----------
     site_flag_present = _site_flag_was_passed(sys.argv[1:])
     site_dir = Path(args.site_dir).resolve()
 
@@ -206,6 +212,7 @@ async def main():
                     print(f"Removed placeholder file: {placeholder}")
                 except Exception:
                     pass
+    # -------------------------------------------------------------------
 
     if not args.indexd_url:
         print("ERROR: --indexd (or INDEXD_URL env) is required.")

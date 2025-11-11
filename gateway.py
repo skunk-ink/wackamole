@@ -43,21 +43,20 @@ import secrets
 import sys
 import zipfile
 import json
+from sys import stdin
+from pathlib import Path, PurePosixPath
+from urllib.parse import urlparse
+from datetime import datetime, timezone
+
+from fastapi import FastAPI, HTTPException, Response
+from fastapi.responses import HTMLResponse, PlainTextResponse
 import uvicorn
-import ssl, http.client
 
 try:
     import magic
 except Exception:
     magic = None
 
-from sys import stdin
-from pathlib import Path, PurePosixPath
-from urllib.parse import urlparse
-from datetime import datetime, timezone
-from fastapi import FastAPI, HTTPException, Response
-from fastapi.responses import HTMLResponse, PlainTextResponse
-from urllib.parse import urlparse
 from dotenv import load_dotenv, set_key
 
 from indexd_ffi import (
@@ -103,18 +102,6 @@ def _norm_path(url_path: str) -> str:
 def _extract_indexd_base(share_url: str) -> str:
     u = urlparse(share_url)
     return f"{u.scheme}://{u.netloc}"
-
-def _preflight_https(indexd_base: str):
-    try:
-        u = urlparse(indexd_base)
-        host = u.netloc
-        conn = http.client.HTTPSConnection(host, 443, context=ssl.create_default_context(), timeout=8)
-        conn.request("HEAD", "/")
-        resp = conn.getresponse()
-        print(f"HTTPS preflight {indexd_base}: {resp.status} {resp.reason}")
-        conn.close()
-    except Exception as e:
-        print(f"HTTPS preflight FAILED for {indexd_base}: {e!r}")
 
 def _load_or_prompt_env(env_path: str = ".env") -> tuple[str, bytes]:
     # Ensure file exists
@@ -338,8 +325,6 @@ async def fetch_zip_via_sdk(share_url: str, indexd_base: str | None, *, no_auth:
     if not indexd_base:
         indexd_base = _extract_indexd_base(share_url)
 
-    _preflight_https(indexd_base)
-
     set_logger(PrintLogger(), "info")
 
     # Prefer "no-auth" path: ephemeral key, do NOT request approval.
@@ -356,7 +341,6 @@ async def fetch_zip_via_sdk(share_url: str, indexd_base: str | None, *, no_auth:
                 raise RuntimeError("Downloaded bytes are not a ZIP (missing PK header).")
             return data
         except Exception as e:
-            print(f"No-auth download failed: {type(e).__name__}: {e}")
             if not auth_fallback:
                 raise
             print("No-auth path failed; attempting interactive auth fallback…")
@@ -408,8 +392,10 @@ def main():
     parser.add_argument("--env", default=".env", help="Path to .env (used only if auth fallback is needed)")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8787)
-    parser.add_argument("--no-auth", dest="no_auth", action=argparse.BooleanOptionalAction, default=True, help="Try to fetch using only the share URL without app approval (default: true)")
-    parser.add_argument("--auth-fallback", dest="auth_fallback", action=argparse.BooleanOptionalAction, default=True, help="If no-auth fails, fall back to interactive auth (default: true)")
+    parser.add_argument("--no-auth", dest="no_auth", action="store_true", default=True,
+                        help="Try to fetch using only the share URL without app approval (default: on)")
+    parser.add_argument("--auth-fallback", dest="auth_fallback", action="store_true", default=True,
+                        help="If no-auth fails, fall back to interactive auth (default: on)")
     args = parser.parse_args()
 
     # If no --share and manifest exists, load from manifest
