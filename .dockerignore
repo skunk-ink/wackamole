@@ -1,0 +1,35 @@
+# VCS & editor
+.git
+.gitignore
+.vscode
+.idea
+*.swp
+.DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.log
+.venv/
+venv/
+.mypy_cache/
+.pytest_cache/
+
+# Node / web
+node_modules/
+dist/
+build/
+.cache/
+*.map
+
+# Large/project-specific
+data/
+website/
+downloads/
+tmp/
+target/
+*.zip
+*.tar
+*.tar.gz
