@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 # gateway.py — serve a static site from an indexd *shared* URL (decrypts via SDK),
-# with .env-managed MNEMONIC and APP_ID_HEX. Works with various handle shapes.
+# with .env-managed MNEMONIC and APP_ID. Works with various handle shapes.
 
 """                      _..._ ___
                        .:::::::.  `"-._.-''.
@@ -109,21 +109,21 @@ def _load_or_prompt_env(env_path: str = ".env") -> tuple[str, bytes]:
     if not os.path.exists(env_path):
         open(env_path, "a", encoding="utf-8").close()
 
-    mnemonic = os.getenv("MNEMONIC")
-    if not mnemonic:
-        print("Enter mnemonic (leave blank to generate a new one):")
+    seed_phrase = os.getenv("SEED_PHRASE")
+    if not seed_phrase:
+        print("Enter seed_phrase (leave blank to generate a new one):")
         entered = stdin.readline().strip()
-        mnemonic = entered or generate_recovery_phrase()
-        set_key(env_path, "MNEMONIC", mnemonic)
+        seed_phrase = entered or generate_recovery_phrase()
+        set_key(env_path, "SEED_PHRASE", seed_phrase)
 
-    app_id_hex = os.getenv("APP_ID_HEX")
+    app_id_hex = os.getenv("APP_ID")
     if not app_id_hex or len(app_id_hex) != 64:
         app_id_bytes = secrets.token_bytes(32)
-        set_key(env_path, "APP_ID_HEX", app_id_bytes.hex())
+        set_key(env_path, "APP_ID", app_id_bytes.hex())
     else:
         app_id_bytes = bytes.fromhex(app_id_hex)
 
-    return mnemonic, app_id_bytes
+    return seed_phrase, app_id_bytes
 
 def _load_manifest(path: Path) -> tuple[str | None, str | None]:
     try:
@@ -347,8 +347,8 @@ async def fetch_zip_via_sdk(share_url: str, indexd_base: str | None, *, no_auth:
             # fall-through to auth path below
 
     # Auth path: ensure connection approved, then download
-    mnemonic, app_id = _load_or_prompt_env(env_path)
-    sdk = Sdk(indexd_base, AppKey(mnemonic, app_id))
+    seed_phrase, app_id = _load_or_prompt_env(env_path)
+    sdk = Sdk(indexd_base, AppKey(seed_phrase, app_id))
     is_connected = await maybe_await(sdk.connected()) if hasattr(sdk, "connected") else True
     if not is_connected:
         resp = await maybe_await(sdk.request_app_connection(AppMeta(

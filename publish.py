@@ -221,7 +221,7 @@ async def main():
     set_logger(PrintLogger(), "INFO")
 
     if not args.seed_phrase:
-        print("Enter mnemonic (or leave empty to generate new):")
+        print("Enter seed phrase (or leave empty to generate new):")
         mnemonic = stdin.readline().strip()
         if not mnemonic:
             mnemonic = generate_recovery_phrase()
