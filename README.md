@@ -66,14 +66,14 @@ You’ll need to compile the **`indexd_ffi`** dynamic library used by both scrip
 #### Linux
 ```bash
 cargo build --release -p indexd_ffi
-cargo run -p indexd_ffi --bin uniffi-bindgen generate   --library target/release/libindexd_ffi.so   --language python --out-dir ../
+cargo run -p indexd_ffi --bin uniffi-bindgen generate --library target/release/libindexd_ffi.so --language python --out-dir ../
 mv target/release/libindexd_ffi.so ../
 ```
 
 #### macOS
 ```bash
 cargo build --release -p indexd_ffi
-cargo run -p indexd_ffi --bin uniffi-bindgen generate   --library target/release/libindexd_ffi.dylib   --language python --out-dir ../
+cargo run -p indexd_ffi --bin uniffi-bindgen generate --library target/release/libindexd_ffi.dylib --language python --out-dir ../
 mv target/release/libindexd_ffi.dylib ../
 ```
 
@@ -141,6 +141,11 @@ Wrote manifest to: manifest.json
 ---
 
 ### Gateway (`gateway.py`)
+
+#### Requirements:
+```shell
+python3 -m pip install "fastapi>=0.115" "uvicorn[standard]>=0.30" "httpx>=0.27" "aiofiles>=23.2"
+```
 
 Runs a FastAPI web server that fetches and serves your site directly from its shared zip.
 
