@@ -1,0 +1,14 @@
+[Unit]
+Description=Wack-A-Mole Gateway
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=notify
+ExecStart=/usr/local/bin/wackamole-gateway
+Restart=on-failure
+User=skunk
+Group=skunk
+
+[Install]
+WantedBy=multi-user.target
