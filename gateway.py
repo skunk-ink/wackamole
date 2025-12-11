@@ -34,7 +34,7 @@
                                    `"             `""""`  `""""""`      
 """
 
-import argparse
+import argparse, webbrowser
 import asyncio
 import io
 import os
@@ -60,8 +60,8 @@ except Exception:
 from dotenv import load_dotenv, set_key
 
 from indexd_ffi import (
-    Sdk, AppKey, AppMeta, set_logger, Logger,
-    DownloadOptions, generate_recovery_phrase
+    Builder, Sdk, AppKey, AppMeta, Logger,
+    DownloadOptions, generate_recovery_phrase, set_logger
 )
 
 class PrintLogger(Logger):
@@ -109,12 +109,13 @@ def _load_or_prompt_env(env_path: str = ".env") -> tuple[str, bytes]:
     if not os.path.exists(env_path):
         open(env_path, "a", encoding="utf-8").close()
 
-    seed_phrase = os.getenv("SEED_PHRASE")
-    if not seed_phrase:
-        print("Enter seed_phrase (leave blank to generate a new one):")
-        entered = stdin.readline().strip()
-        seed_phrase = entered or generate_recovery_phrase()
-        set_key(env_path, "SEED_PHRASE", seed_phrase)
+    recovery_phrase = os.getenv("RECOVERY_PHRASE")
+    if not recovery_phrase:
+        print("Enter recovery phrase (type `seed` to generate a new one):")
+        recovery_phrase = stdin.readline().strip()
+        if recovery_phrase == "seed":
+            generate_recovery_phrase()
+        set_key(env_path, "RECOVERY_PHRASE", recovery_phrase)
 
     app_id_hex = os.getenv("APP_ID")
     if not app_id_hex or len(app_id_hex) != 64:
@@ -123,7 +124,7 @@ def _load_or_prompt_env(env_path: str = ".env") -> tuple[str, bytes]:
     else:
         app_id_bytes = bytes.fromhex(app_id_hex)
 
-    return seed_phrase, app_id_bytes
+    return recovery_phrase, app_id_bytes
 
 def _load_manifest(path: Path) -> tuple[str | None, str | None]:
     try:
@@ -199,34 +200,30 @@ def _serve_member(name: str):
     return Response(data, media_type=_guess_mime(name), headers=headers)
 
 async def read_handle_bytes(handle, *, chunk_size: int = 1 << 20) -> bytes:
-    # 1) Common "read all" shapes
     for rname in ("read_all", "read_to_end", "bytes"):
         if hasattr(handle, rname):
             return bytes(await maybe_await(getattr(handle, rname)()))
 
-    # 2) Pull-based chunk readers
     for rname in ("read", "next_chunk"):
         if hasattr(handle, rname):
-            out = bytearray()
+            byte_array = bytearray()
             reader = getattr(handle, rname)
             while True:
                 chunk = await maybe_await(reader())
                 if not chunk:
                     break
-                out.extend(chunk)
-            return bytes(out)
+                byte_array.extend(chunk)
+            return bytes(byte_array)
 
-    # 2b) indexd_ffi.Download shape: read_chunk()
     if hasattr(handle, "read_chunk"):
-        out = bytearray()
+        byte_array = bytearray()
         while True:
             chunk = await maybe_await(handle.read_chunk())
             if not chunk:
                 break
-            out.extend(chunk)
-        return bytes(out)
+            byte_array.extend(chunk)
+        return bytes(byte_array)
 
-    # 3) Range reader (size + read_at)
     size = None
     for sname in ("size", "len", "length"):
         if hasattr(handle, sname):
@@ -238,70 +235,65 @@ async def read_handle_bytes(handle, *, chunk_size: int = 1 << 20) -> bytes:
                 break
             size = None
     if size is not None and hasattr(handle, "read_at"):
-        out = bytearray()
+        byte_array = bytearray()
         off = 0
         while off < size:
             n = min(chunk_size, size - off)
             chunk = await maybe_await(handle.read_at(off, n))
             if not chunk:
                 break
-            out.extend(chunk)
+            byte_array.extend(chunk)
             off += len(chunk)
-        return bytes(out)
+        return bytes(byte_array)
 
-    # 4) Streams (async iterator or .stream() → object with .read())
     if hasattr(handle, "__aiter__"):
-        out = bytearray()
-        async for chunk in handle:  # type: ignore
+        byte_array = bytearray()
+        async for chunk in handle:
             if not chunk:
                 break
-            out.extend(chunk)
-        return bytes(out)
+            byte_array.extend(chunk)
+        return bytes(byte_array)
     if hasattr(handle, "stream"):
         s = await maybe_await(handle.stream())
         if hasattr(s, "read"):
-            out = bytearray()
+            byte_array = bytearray()
             while True:
                 chunk = await maybe_await(s.read(chunk_size))
                 if not chunk:
                     break
-                out.extend(chunk)
-            return bytes(out)
+                byte_array.extend(chunk)
+            return bytes(byte_array)
         if hasattr(s, "__aiter__"):
-            out = bytearray()
+            byte_array = bytearray()
             async for chunk in s:  # type: ignore
                 if not chunk:
                     break
-                out.extend(chunk)
-            return bytes(out)
+                byte_array.extend(chunk)
+            return bytes(byte_array)
 
-    # 5) .open() → filelike with read()
     if hasattr(handle, "open"):
         f = await maybe_await(handle.open())
         if hasattr(f, "read"):
-            out = bytearray()
+            byte_array = bytearray()
             while True:
                 chunk = await maybe_await(f.read(chunk_size))
                 if not chunk:
                     break
-                out.extend(chunk)
-            return bytes(out)
+                byte_array.extend(chunk)
+            return bytes(byte_array)
 
-    # 6) __bytes__ or direct bytes()
     if hasattr(handle, "__bytes__"):
         try:
             return bytes(handle)
         except Exception:
             pass
 
-    # 7) Struct-like responses with .content / .data / .body
     for attr in ("content", "data", "body"):
         if hasattr(handle, attr):
             b = getattr(handle, attr)
             if isinstance(b, (bytes, bytearray)):
                 return bytes(b)
 
-    # 8) Helpful error
     t = type(handle)
     attrs = [a for a in dir(handle) if not a.startswith("_")]
     raise RuntimeError(
@@ -310,11 +302,7 @@ async def read_handle_bytes(handle, *, chunk_size: int = 1 << 20) -> bytes:
         f"attrs={attrs}"
     )
 
-# ==============================
-# SDK download (resolve → download_shared)
-# ==============================
-
-async def fetch_zip_via_sdk(share_url: str, indexd_base: str | None, *, no_auth: bool, env_path: str, auth_fallback: bool) -> bytes:
+async def fetch_zip_via_sdk(share_url: str, indexer_url: str | None, *, no_auth: bool, env_path: str, auth_fallback: bool) -> bytes:
     # Windows event loop policy (helps some async stacks)
     if sys.platform.startswith("win"):
         try:
@@ -322,16 +310,18 @@ async def fetch_zip_via_sdk(share_url: str, indexd_base: str | None, *, no_auth:
         except Exception:
             pass
 
-    if not indexd_base:
-        indexd_base = _extract_indexd_base(share_url)
+    if not indexer_url:
+        indexer_url = _extract_indexd_base(share_url)
 
     set_logger(PrintLogger(), "info")
 
-    # Prefer "no-auth" path: ephemeral key, do NOT request approval.
+    builder = Builder(indexer_url)
+
+    """ # Prefer "no-auth" path: ephemeral key, do NOT request approval.
     if no_auth:
-        ephemeral_mnemonic = generate_recovery_phrase()
-        ephemeral_app_id = secrets.token_bytes(32)
-        sdk = Sdk(indexd_base, AppKey(ephemeral_mnemonic, ephemeral_app_id))
+        recovery_phrase, app_id = _load_or_prompt_env(env_path)
+        app_key = AppKey(recovery_phrase, app_id)
+        sdk = Sdk(indexer_url, app_key)
         try:
             # Directly try the shared-object flow without checking sdk.connected()
             ref = await maybe_await(sdk.shared_object(share_url))
@@ -344,29 +334,36 @@ async def fetch_zip_via_sdk(share_url: str, indexd_base: str | None, *, no_auth:
             if not auth_fallback:
                 raise
             print("No-auth path failed; attempting interactive auth fallback…")
-            # fall-through to auth path below
+            # fall-through to auth path below """
 
     # Auth path: ensure connection approved, then download
-    seed_phrase, app_id = _load_or_prompt_env(env_path)
-    sdk = Sdk(indexd_base, AppKey(seed_phrase, app_id))
-    is_connected = await maybe_await(sdk.connected()) if hasattr(sdk, "connected") else True
-    if not is_connected:
-        resp = await maybe_await(sdk.request_app_connection(AppMeta(
-            name="Zip Gateway (read-only)",
-            description="Temporary client to read a shared object",
+    recovery_phrase, app_id = _load_or_prompt_env(env_path)
+
+    app_meta = AppMeta(
+            id=app_id,
+            name="Wack-a-Mole Gateway (read-only)",
+            description="Temporary client to read a shared Wack-a-Mole site",
             service_url="about:blank",
             logo_url=None,
             callback_url=None
-        )))
-        print("Approve access in your browser if it opens:")
-        print(resp.response_url)
-        try:
-            import webbrowser; webbrowser.open(resp.response_url)
-        except Exception:
-            pass
-        ok = await maybe_await(sdk.wait_for_connect(resp))
-        if not ok:
-            raise RuntimeError("Authorization was not granted")
+        )
+
+    # Request app connection and get the approval URL
+    print("\nRequesting app authorization…")
+    print("\n\nOpen this URL to approve the app:", builder.response_url())
+    await builder.request_connection(app_meta)
+    try:
+        webbrowser.open(builder.response_url())
+    except Exception:
+        pass
+    
+    # Wait for the user to approve the request
+    approved = await builder.wait_for_approval()
+    if not approved:
+        raise Exception("\nUser rejected the app or request timed out")
+
+    # Register an SDK instance with your recovery phrase.
+    sdk: Sdk = await builder.register(recovery_phrase)
 
     ref = await maybe_await(sdk.shared_object(share_url))
     handle = await maybe_await(sdk.download_shared(ref, DownloadOptions(max_inflight=6)))
@@ -386,9 +383,9 @@ def load_zip_into_memory(data: bytes):
 
 def main():
     parser = argparse.ArgumentParser(description="Serve a static site from an indexd share URL (SDK-backed).")
-    parser.add_argument("--share", help="Share URL printed by publish.py")
+    parser.add_argument("--share-url", help="Share URL printed by publish.py")
     parser.add_argument("--manifest", default="manifest.json", help="Path to manifest.json (auto-used if --share not given)")
-    parser.add_argument("--indexd", default=None, help="Indexd base URL (auto-detected from share or manifest if omitted)")
+    parser.add_argument("--indexer-url", default=None, help="Indexd base URL (auto-detected from share or manifest if omitted)")
     parser.add_argument("--env", default=".env", help="Path to .env (used only if auth fallback is needed)")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8787)
@@ -399,23 +396,23 @@ def main():
     args = parser.parse_args()
 
     # If no --share and manifest exists, load from manifest
-    if not args.share:
+    if not args.share_url:
         mpath = Path(args.manifest)
         if mpath.exists():
-            share_from_m, indexd_from_m = _load_manifest(mpath)
-            if share_from_m:
-                args.share = share_from_m
-            if not args.indexd and indexd_from_m:
-                args.indexd = indexd_from_m
+            manifest_share_url, manifest_indexer_url = _load_manifest(mpath)
+            if manifest_share_url:
+                args.share_url = manifest_share_url
+            if not args.indexer_url and manifest_indexer_url:
+                args.indexer_url = manifest_indexer_url
 
-    if not args.share:
+    if not args.share_url:
         print("ERROR: Provide --share or ensure manifest.json exists with a share_url.")
         sys.exit(2)
 
     # Fetch ZIP (no-auth first, with optional auth fallback)
     data = asyncio.run(fetch_zip_via_sdk(
-        args.share,
-        args.indexd,
+        args.share_url,
+        args.indexer_url,
         no_auth=args.no_auth,
         env_path=args.env,
         auth_fallback=args.auth_fallback

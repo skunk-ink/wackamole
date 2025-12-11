@@ -44,8 +44,9 @@ from datetime import datetime, timedelta, timezone
 sys.path.insert(0, str(Path(__file__).parent.resolve()))
 
 from indexd_ffi import (
-    generate_recovery_phrase, AppKey, AppMeta, Sdk,
-    UploadOptions, set_logger, Logger
+    Builder, AppKey, AppMeta, Sdk,
+    UploadOptions, Logger, 
+    generate_recovery_phrase, set_logger
 )
 
 try:
@@ -173,17 +174,17 @@ async def main():
             pass
 
     parser = argparse.ArgumentParser(description="Upload a static site (zipped) to Sia via remote indexd.")
-    parser.add_argument("--indexd", dest="indexd_url", default=os.getenv("INDEXD_URL"), required=False)
-    parser.add_argument("--site", dest="site_dir", default="website")
-    parser.add_argument("--out", dest="out_manifest", default="manifest.json")
+    parser.add_argument("--site-dir", dest="site_dir", default="website")
+    parser.add_argument("--manifest", dest="out_manifest", default="manifest.json")
+    parser.add_argument("--indexer-url", dest="indexer_url", default=os.getenv("INDEXER_URL"), required=False)
+    parser.add_argument("--app-id", dest="app_id", default=os.getenv("APP_ID"))
     parser.add_argument("--app-name", default=os.getenv("APP_NAME", "My Static Site"))
     parser.add_argument("--app-desc", default=os.getenv("APP_DESC", "Publishes static sites to Sia via indexd"))
     parser.add_argument("--service-url", default=os.getenv("SERVICE_URL", "https://example.com"))
     parser.add_argument("--logo-url", default=os.getenv("LOGO_URL"))
     parser.add_argument("--callback-url", default=os.getenv("CALLBACK_URL"))
     parser.add_argument("--share-days", type=int, default=365)
-    parser.add_argument("--app-id", dest="app_id", default=os.getenv("APP_ID"))
-    parser.add_argument("--seed-phrase", dest="seed_phrase", default=os.getenv("SEED_PHRASE"))
+    parser.add_argument("--recovery-phrase", dest="recovery_phrase", default=os.getenv("RECOVERY_PHRASE"))
     parser.add_argument("--data", type=int, default=None)
     parser.add_argument("--parity", type=int, default=None)
     parser.add_argument("--inflight", type=int, default=6)
@@ -196,7 +197,7 @@ async def main():
     if not site_flag_present and site_dir.name == "website":
         # Only auto-build if user didn't explicitly choose a different --site
         if _dir_is_empty_or_only_placeholder(site_dir):
-            print(f"ℹ️  No custom site detected in {site_dir} (empty or only '{PLACEHOLDER_NAME}').")
+            print(f"ℹ️  No custom site detected in {site_dir}.")
             _run_demo_builder(site_dir)
         else:
             # If the placeholder file exists alongside other files, quietly ignore it.
@@ -208,20 +209,20 @@ async def main():
                 except Exception:
                     pass
 
-    if not args.indexd_url:
+    if not args.indexer_url:
         print("ERROR: --indexd (or INDEXD_URL env) is required.")
         sys.exit(2)
 
     set_logger(PrintLogger(), "INFO")
 
-    if not args.seed_phrase:
-        print("Enter seed phrase (or leave empty to generate new):")
-        mnemonic = stdin.readline().strip()
-        if not mnemonic:
-            mnemonic = generate_recovery_phrase()
-        print("\nmnemonic:", mnemonic)
+    if not args.recovery_phrase:
+        print("Enter seed phrase (or type `seed` to generate new):")
+        recovery_phrase = stdin.readline().strip()
+        if recovery_phrase == "seed":
+            recovery_phrase = generate_recovery_phrase()
+            print("\nYour Recovery Phrase (Keep this stored securely, it is your apps master key!): \n" + recovery_phrase)
     else:
-        mnemonic = args.seed_phrase
+        recovery_phrase = args.recovery_phrase
 
     if not args.app_id:
         app_id = b'\x01' * 32
@@ -234,28 +235,39 @@ async def main():
         print(f"ERROR: {e}")
         sys.exit(2)
 
-    app_key = AppKey(mnemonic, app_id_bytes)
-    sdk = Sdk(args.indexd_url, app_key)
+    builder = Builder(args.indexer_url)
 
-    if not await sdk.connected():
-        print("\nRequesting app authorization…")
-        resp = await sdk.request_app_connection(AppMeta(
-            name=args.app_name,
-            description=args.app_desc,
-            service_url=args.service_url,
-            logo_url=args.logo_url or None,
-            callback_url=args.callback_url or None
-        ))
-        print("Open this URL to approve access:\n", resp.response_url)
-        try:
-            webbrowser.open(resp.response_url)
-        except Exception:
-            pass
-        ok = await sdk.wait_for_connect(resp)
-        if not ok:
-            print("Authorization was not granted.")
-            sys.exit(1)
-        print("App authorized.")
+    app_meta = AppMeta(
+        id=args.app_id,
+        name=args.app_name,
+        description=args.app_desc,
+        service_url=args.service_url,
+        logo_url=args.logo_url or None,
+        callback_url=args.callback_url or None
+    )
+
+    # Request app connection and get the approval URL
+    print("\nRequesting app authorization…")
+    print("\n\nOpen this URL to approve the app:", builder.response_url())
+    await builder.request_connection(app_meta)
+    try:
+        webbrowser.open(builder.response_url())
+    except Exception:
+        pass
+    
+    # Wait for the user to approve the request
+    approved = await builder.wait_for_approval()
+    if not approved:
+        raise Exception("\nUser rejected the app or request timed out")
+
+    # Register an SDK instance with your recovery phrase.
+    sdk: Sdk = await builder.register(recovery_phrase)
+
+    # Export the App Key and store it securely for future launches
+    app_key = sdk.app_key()
+    print("\nStore this App Key in your app's secure storage:", app_key.export())
+
+    print("\nApp Connected!")
 
     # Prepare the zipped site archive
     # (site_dir may have been auto-populated above)
@@ -288,10 +300,10 @@ async def main():
 
     # Start upload
     print("Uploading to Sia via indexd…")
-    up = await sdk.upload(UploadOptions(
-        max_inflight=args.inflight,
-        data_shards=data_shards,
-        parity_shards=parity_shards,
+    upload_writer = await sdk.upload(UploadOptions(
+        #max_inflight=args.inflight,
+        #data_shards=data_shards,
+        #parity_shards=parity_shards,
         metadata=metadata_bytes,
         progress_callback=None
     ))
@@ -303,12 +315,12 @@ async def main():
             chunk = f.read(chunk_size)
             if not chunk:
                 break
-            await up.write(chunk)
+            await upload_writer.write(chunk)
             sent += len(chunk)
             pct = (sent / size) * 100 if size else 100.0
             print(f"\r{human_bytes(sent)} / {human_bytes(size)} ({pct:.1f}%)", end="", flush=True)
     print()
-    obj = await up.finalize()
+    obj = await upload_writer.finalize()
 
     # Signed share URL
     valid_until = datetime.now(timezone.utc) + timedelta(days=args.share_days)
@@ -322,8 +334,9 @@ async def main():
     except Exception:
         pass
 
-    manifest = {
-        "indexd_url": args.indexd_url,
+    app_manifest = {
+        "id": args.app_id,
+        "indexer_url": args.indexer_url,
         "sealed_object": {"id": sealed_id} if sealed_id else {},
         "share_url": signed_url,
         "valid_until": valid_until.isoformat(),
@@ -336,7 +349,7 @@ async def main():
             "chunk_mib": args.chunk_mib,
         }
     }
-    Path(args.out_manifest).write_text(json.dumps(manifest, indent=2))
+    Path(args.out_manifest).write_text(json.dumps(app_manifest, indent=2))
     print("\n✅ Upload complete.")
     print("Share URL (give this to a gateway):")
     print(signed_url)
