@@ -307,6 +307,15 @@ viewBox="0 0 7806 7480"
         dst.write_text(placeholder, encoding="utf-8")
         print(f"⚠️  {src} not found; wrote placeholder logo to {dst}")
 
+def copy_favicon(repo_root: Path, out_dir: Path):
+    """Copy ./assets/favicon.ico → <out>/assets/favicon.ico if it exists"""
+    src = repo_root / "assets" / "favicon.ico"
+    dst = out_dir / "assets" / "favicon.ico"
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    if src.exists():
+        shutil.copyfile(src, dst)
+        print(f"✓ Copied {src} → {dst}")
+
 def build_readme_html(out_dir: Path):
     """Generate README.html next to the demo using the same header format as index.html."""
     readme_md = Path("README.md")
