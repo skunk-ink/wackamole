@@ -8,6 +8,7 @@ website/assets/
 website/css/
 website/js/
 *.html
+app_key.bin
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

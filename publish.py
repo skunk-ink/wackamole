@@ -238,7 +238,7 @@ async def main():
     builder = Builder(args.indexer_url)
 
     app_meta = AppMeta(
-        id=args.app_id,
+        id=app_id_bytes,
         name=args.app_name,
         description=args.app_desc,
         service_url=args.service_url,
@@ -248,10 +248,10 @@ async def main():
 
     # Request app connection and get the approval URL
     print("\nRequesting app authorization…")
-    print("\n\nOpen this URL to approve the app:", builder.response_url())
     await builder.request_connection(app_meta)
     try:
         webbrowser.open(builder.response_url())
+        print("\n\nOpen this URL to approve the app:", builder.response_url())
     except Exception:
         pass
     

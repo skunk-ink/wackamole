@@ -56,8 +56,12 @@ try:
     import magic
 except Exception:
     magic = None
-
-from dotenv import load_dotenv, set_key
+from dotenv import set_key
+try:
+    from dotenv import load_dotenv
+    load_dotenv('.env')
+except Exception:
+    pass
 
 from indexd_ffi import (
     Builder, Sdk, AppKey, AppMeta, Logger,
@@ -69,6 +73,24 @@ class PrintLogger(Logger):
     def info(self, msg): print("INFO", msg)
     def warning(self, msg): print("WARN", msg)
     def error(self, msg): print("ERROR", msg)
+
+def _load_app_key() -> bytes | None:
+    try:
+        with open("app_key.bin", "rb") as f:
+            data = f.read()
+    except FileNotFoundError:
+        return None
+
+    # AppKey requires exactly 32 bytes. If it's not, ignore and re-onboard.
+    if len(data) != 32:
+        print(f"\nStored App Key has invalid length ({len(data)} bytes). Ignoring and re-onboarding.")
+        return None
+
+    return data
+
+def _save_app_key(data: bytes) -> None:
+    with open("app_key.bin", "wb") as f:
+        f.write(data)
 
 async def maybe_await(x):
     return await x if asyncio.iscoroutine(x) else x
@@ -104,11 +126,6 @@ def _extract_indexd_base(share_url: str) -> str:
     return f"{u.scheme}://{u.netloc}"
 
 def _load_or_prompt_env(env_path: str = ".env") -> tuple[str, bytes]:
-    # Ensure file exists
-    load_dotenv(env_path)
-    if not os.path.exists(env_path):
-        open(env_path, "a", encoding="utf-8").close()
-
     recovery_phrase = os.getenv("RECOVERY_PHRASE")
     if not recovery_phrase:
         print("Enter recovery phrase (type `seed` to generate a new one):")
@@ -316,54 +333,59 @@ async def fetch_zip_via_sdk(share_url: str, indexer_url: str | None, *, no_auth:
     set_logger(PrintLogger(), "info")
 
     builder = Builder(indexer_url)
-
-    """ # Prefer "no-auth" path: ephemeral key, do NOT request approval.
-    if no_auth:
-        recovery_phrase, app_id = _load_or_prompt_env(env_path)
-        app_key = AppKey(recovery_phrase, app_id)
-        sdk = Sdk(indexer_url, app_key)
-        try:
-            # Directly try the shared-object flow without checking sdk.connected()
-            ref = await maybe_await(sdk.shared_object(share_url))
-            handle = await maybe_await(sdk.download_shared(ref, DownloadOptions(max_inflight=6)))
-            data = await read_handle_bytes(handle)
-            if not data.startswith(b"PK\x03\x04"):
-                raise RuntimeError("Downloaded bytes are not a ZIP (missing PK header).")
-            return data
-        except Exception as e:
-            if not auth_fallback:
-                raise
-            print("No-auth path failed; attempting interactive auth fallback…")
-            # fall-through to auth path below """
-
-    # Auth path: ensure connection approved, then download
+    
     recovery_phrase, app_id = _load_or_prompt_env(env_path)
 
-    app_meta = AppMeta(
-            id=app_id,
-            name="Wack-a-Mole Gateway (read-only)",
-            description="Temporary client to read a shared Wack-a-Mole site",
-            service_url="about:blank",
-            logo_url=None,
-            callback_url=None
-        )
+    sdk: Sdk | None = None
+    app_key: AppKey | None = None
 
-    # Request app connection and get the approval URL
-    print("\nRequesting app authorization…")
-    print("\n\nOpen this URL to approve the app:", builder.response_url())
-    await builder.request_connection(app_meta)
-    try:
-        webbrowser.open(builder.response_url())
-    except Exception:
-        pass
-    
-    # Wait for the user to approve the request
-    approved = await builder.wait_for_approval()
-    if not approved:
-        raise Exception("\nUser rejected the app or request timed out")
+    stored_key = _load_app_key()
+    if stored_key is not None:
+        try:
+            app_key = AppKey(stored_key)
+            sdk = await builder.connected(app_key)
+        except Exception as e:
+            # If anything goes wrong parsing the key, fall back to onboarding
+            print(f"\nFailed to use stored App Key ({e}). Running onboarding...\n")
+            sdk = None
+            app_key = None
 
-    # Register an SDK instance with your recovery phrase.
-    sdk: Sdk = await builder.register(recovery_phrase)
+        if sdk is not None:
+            print("\nConnected using stored App Key.")
+        else:
+            print("\nStored App Key is no longer valid. Running onboarding...\n")
+
+    # 3. If fast-path failed (or no key stored), run the full onboarding flow
+    if sdk is None:
+        app_meta = AppMeta(
+                id=app_id,
+                name="Wack-a-Mole Gateway (read-only)",
+                description="Temporary client to read a shared Wack-a-Mole site",
+                service_url="about:blank",
+                logo_url=None,
+                callback_url=None
+            )
+
+        # Request app connection and get the approval URL
+        print("\nRequesting app authorization…")
+        await builder.request_connection(app_meta)
+        try:
+            webbrowser.open(builder.response_url())
+            print("\n\nOpen this URL to approve the app:", builder.response_url())
+        except Exception:
+            pass
+        
+        # Wait for the user to approve the request
+        approved = await builder.wait_for_approval()
+        if not approved:
+            raise Exception("\nUser rejected the app or request timed out")
+
+        # Register an SDK instance with your recovery phrase.
+        sdk = await builder.register(recovery_phrase)
+
+        app_key = sdk.app_key()
+        exported = app_key.export()  # Should be a 32-byte key for secure storage
+        _save_app_key(exported)
 
     ref = await maybe_await(sdk.shared_object(share_url))
     handle = await maybe_await(sdk.download_shared(ref, DownloadOptions(max_inflight=6)))
