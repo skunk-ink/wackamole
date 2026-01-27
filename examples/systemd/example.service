@@ -7,8 +7,8 @@ After=network-online.target
 Type=notify
 ExecStart=/usr/local/bin/wackamole-gateway
 Restart=on-failure
-User=skunk
-Group=skunk
+User=user
+Group=user
 
 [Install]
 WantedBy=multi-user.target

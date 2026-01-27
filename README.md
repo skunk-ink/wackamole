@@ -79,8 +79,8 @@ mv target/release/libindexd_ffi.dylib ../
 
 #### Windows (PowerShell)
 ```powershell
-cargo build --release -p indexd_ffi
-cargo run -p indexd_ffi --bin uniffi-bindgen -- generate --library .\target\release\indexd_ffi.dll --language python --out-dir ../
+cargo build --release -p indexd_ffi; `
+cargo run -p indexd_ffi --bin uniffi-bindgen -- generate --library .\target\release\indexd_ffi.dll --language python --out-dir ../; `
 mv target\release\indexd_ffi.dll ../
 ```
 
